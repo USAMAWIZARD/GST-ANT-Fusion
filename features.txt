@@ -1,0 +1,22 @@
+should support
+
+Injest and Egress
+rtp 
+RTSP
+UDP
+TCP
+
+should support sending to kenisis
+sould support pipeline passing for gstreamer
+should support python https://medium.com/@mtlazul/gstinference-performing-tensorflow-inference-on-gstreamer-52b64b2df07e
+https://sahilchachra.medium.com/all-you-want-to-get-started-with-gstreamer-in-python-2276d9ed548e
+https://www.it-jim.com/blog/gstreamer-for-computer-vision-and-audio-processing/
+
+should support rest api call for adding gst pipeline directly
+suould support ams to gst ----back to asm streams wit gstreamer pipeline
+try to use hardware decoder
+
+should support ffmpeg pipileine 
+
+Tricripber
+https://rustrepo.com/repo/gstreamer-plugin-for-speech-to-text-using-the-vosk-toolkit

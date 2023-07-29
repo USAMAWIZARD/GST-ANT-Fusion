@@ -1,3 +1,7 @@
+#define PIPE_GSTREAMER "Gstreamer"
+#define PIPE_FFMPEG "FFmpeg"
+#define PIPE_RTSP "RTSP"
+
 #include <stdio.h>
 #include <libavutil/frame.h>
 #include <libavcodec/avcodec.h>
@@ -8,14 +12,11 @@
 #include <libavcodec/avcodec.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/mathematics.h>
+
+
 static char *port = "8554";
 GstRTSPMountPoints *mounts;
 GHashTable *hash_table;
-GstClockTime timestamp, duration;
-
-int add_rtsp_stream(gchar *streamId);
-void sendPacket(AVPacket *pktPointer, gchar *streamId);
-void init_rtsp_server();
 
 typedef struct
 {
@@ -23,6 +24,12 @@ typedef struct
   GstElement *pipeline;
   volatile gboolean pipeline_initialized;
 } StreamMap;
+
+
+int add_rtsp_stream(gchar *streamId);
+void sendPacket(AVPacket *pktPointer, gchar *streamId);
+void init_rtsp_server();
+
 
 void check_err(int exp, char *msg, int is_exit)
 {
@@ -89,12 +96,25 @@ void sendPacket(AVPacket *pktPointer, gchar *streamId)
 }
 void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
 {
+  // register appropriate pipline
   if (g_hash_table_contains(hash_table, streamId))
   {
-    // register appropriate pipline
+    if(g_strcmp0(pipeline_type,PIPE_GSTREAMER)==0){
+      
+    }
+    else if(g_strcmp0(pipeline_type,PIPE_FFMPEG)==0){
+
+    }
+    else if(g_strcmp0(pipeline_type,PIPE_RTSP)==0){
+
+    }
+    else{
+      //invalid option
+    }
   }
   else
   {
+    //sreamid not found
   }
 }
 static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, gpointer streamid)
@@ -113,8 +133,6 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
     ctx->pipeline_initialized = 1;
     ctx->pipeline = element;
 
-    // g_signal_connect(appsrc, "need-data", (GCallback)need_data, streamid);
-    // gst_object_unref(appsrc);
     gst_object_unref(element);
   }
   else
