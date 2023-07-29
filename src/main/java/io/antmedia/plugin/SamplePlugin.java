@@ -1,5 +1,6 @@
 package io.antmedia.plugin;
 
+
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -16,9 +17,11 @@ import io.antmedia.muxer.MuxAdaptor;
 import io.antmedia.plugin.api.IFrameListener;
 import io.antmedia.plugin.api.IStreamListener;
 import io.vertx.core.Vertx;
+import io.antmedia.app.NativeInterface;
+
 
 @Component(value="plugin.myplugin")
-public class SamplePlugin implements ApplicationContextAware, IStreamListener{
+public class SamplePlugin extends NativeInterface  implements ApplicationContextAware, IStreamListener{
 
 	public static final String BEAN_NAME = "web.handler";
 	protected static Logger logger = LoggerFactory.getLogger(SamplePlugin.class);
@@ -63,7 +66,9 @@ public class SamplePlugin implements ApplicationContextAware, IStreamListener{
 		app.addFrameListener(streamId, frameListener);		
 		app.addPacketListener(streamId, packetListener);
 	}
-	
+	public void register_pipeline(String streamId, String pipeline_type,  String pipeline){
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_pipeline(streamId, pipeline_type, pipeline);
+	}
 	public AntMediaApplicationAdapter getApplication() {
 		return (AntMediaApplicationAdapter) applicationContext.getBean(AntMediaApplicationAdapter.BEAN_NAME);
 	}
@@ -80,17 +85,15 @@ public class SamplePlugin implements ApplicationContextAware, IStreamListener{
 	@Override
 	public void streamStarted(String streamId) {
 		logger.info("*************** Stream Started: {} ***************", streamId);
-
 		AntMediaApplicationAdapter app = getApplication();
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
 		app.addPacketListener(streamId, packetListener);
-
-
-
 	}
 
 	@Override
 	public void streamFinished(String streamId) {
 		logger.info("*************** Stream Finished: {} ***************", streamId);
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.unregister_stream(streamId);
 	}
 
 	@Override

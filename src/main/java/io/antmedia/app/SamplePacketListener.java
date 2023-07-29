@@ -8,16 +8,10 @@ import org.bytedeco.ffmpeg.avcodec.AVPacket;
 
 import io.antmedia.plugin.api.IPacketListener;
 import io.antmedia.plugin.api.StreamParametersInfo;
+import io.antmedia.app.NativeInterface;
 
-interface JNA_RTSP_SERVER extends Library {
-	JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native/libGstRTSP.so", JNA_RTSP_SERVER.class);
 
-	void init_rtsp_server();
-
-	void sendPacket(long pktPointer, String streamId);
-}
-
-public class SamplePacketListener implements IPacketListener{
+public class SamplePacketListener extends NativeInterface implements IPacketListener{
 	static int is_init=0;
 	public SamplePacketListener(){
 		if(is_init==0)
@@ -41,9 +35,7 @@ public class SamplePacketListener implements IPacketListener{
 
 	@Override
 	public AVPacket onVideoPacket(String streamId, AVPacket packet) {
-		//System.out.println("Samp------------------------------Info()"+packet.pts()+" dts"+packet.dts());		
-		JNA_RTSP_SERVER.INSTANCE.sendPacket(packet.address(),streamId);
-
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.sendPacket(packet.address(),streamId);
 		packetCount++;
 		return packet;
 	}

@@ -40,13 +40,14 @@ public class RestService {
 		return Response.status(Status.OK).entity("").build();
 	}
 	
-	@GET
-	@Path("/stats")
+	@POST
+	@Path("/register-pipeline")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public String getStats() {
+	public Response register_pipeline(@PathParam("streamId") String streamId,@PathParam("pipeline_type") String pipeline_type,@PathParam("pipeline") String pipeline) {
 		SamplePlugin app = getPluginApp();
-		return app.getStats();
+		app.register_pipeline(streamId,pipeline_type,pipeline);
+		return Response.status(Status.OK).entity("").build();
 	}
 	
 	private SamplePlugin getPluginApp() {
