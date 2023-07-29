@@ -26,9 +26,12 @@ typedef struct
 } StreamMap;
 
 
-int add_rtsp_stream(gchar *streamId);
+int add_rtsp_pipeline(gchar *streamId);
 void sendPacket(AVPacket *pktPointer, gchar *streamId);
 void init_rtsp_server();
+void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline);
+int add_gstreamer_pipeline(char *pipeline, char *streamId);
+int add_rtsp_pipeline(gchar *streamId);
 
 
 void check_err(int exp, char *msg, int is_exit)
@@ -45,23 +48,7 @@ void check_err(int exp, char *msg, int is_exit)
 void sig_handler()
 {
 }
-static inline guint64
-gst_ffmpeg_time_ff_to_gst(gint64 pts, AVRational base)
-{
-  guint64 out;
 
-  if (pts == AV_NOPTS_VALUE)
-  {
-    out = GST_CLOCK_TIME_NONE;
-  }
-  else
-  {
-    AVRational bq = {1, GST_SECOND};
-    out = av_rescale_q(pts, base, bq);
-  }
-
-  return out;
-}
 void sendPacket(AVPacket *pktPointer, gchar *streamId)
 {
   AVPacket *pkt = (AVPacket *)pktPointer;
@@ -117,6 +104,7 @@ void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
     //sreamid not found
   }
 }
+
 static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, gpointer streamid)
 {
 
@@ -141,28 +129,7 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
   }
 }
 
-int add_gstreamer_pipeline(char *pipeline, char *streamId)
-{
-  gchar pipe[700];
-  gchar mountpoint[30];
-  StreamMap *ctx;
-  if (g_hash_table_contains(hash_table, streamId))
-  {
-
-    ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
-    sprintf(pipe, "appsrc  name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \" !  h264parse ! %s", streamId, pipeline);
-    ctx->pipeline = gst_parse_launch(pipe, NULL);
-    gst_element_set_state(ctx->pipeline, GST_STATE_PLAYING);
-    ctx->pipeline_initialized = 1;
-    return 0;
-  }
-  else
-  {
-    return -1;
-  }
-}
-
-int add_rtsp_stream(gchar *streamId)
+int add_rtsp_pipeline(gchar *streamId)
 {
   GstRTSPMediaFactory *factory;
   gchar pipe[700];
@@ -179,6 +146,31 @@ int add_rtsp_stream(gchar *streamId)
   g_print("New stream ready at rtsp://127.0.0.1:%s/%s\n", port, streamId);
 }
 
+int add_gstreamer_pipeline(char *pipeline, char *streamId)
+{
+  gchar pipe[700];
+  gchar mountpoint[30];
+  StreamMap *ctx;
+  if (g_hash_table_contains(hash_table, streamId))
+  {
+    ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
+    sprintf(pipe, "appsrc  name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \" !  h264parse ! %s", streamId, pipeline);
+    ctx->pipeline = gst_parse_launch(pipe, NULL);
+    gst_element_set_state(ctx->pipeline, GST_STATE_PLAYING);
+    ctx->pipeline_initialized = 1;
+    return 0;
+  }
+  else
+  {
+    return -1;
+  }
+}
+int add_ffmpeg_pipeline(char *pipeline, char *streamId){
+
+  return 0;
+}
+
+
 void register_stream(char *streamId)
 {
   printf("new streamid recived adding new stream : %s \n", streamId);
@@ -186,7 +178,7 @@ void register_stream(char *streamId)
   ctx->pipeline_initialized = 0;
   g_hash_table_insert(hash_table, streamId, ctx);
 
-  add_rtsp_stream(streamId);
+  add_rtsp_pipeline(streamId);
 
   printf("added stream id\n");
 }
@@ -195,8 +187,8 @@ void unregister_stream(char *streamId)
   if (g_hash_table_contains(hash_table, streamId))
   {
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
-    gst_element_set_state((GstElement *)ctx->appsrc, GST_STATE_NULL); // / not exist in case of rtsp
-    gst_element_set_state(ctx->pipeline, GST_STATE_NULL);             // not exist in case of rtsp
+    gst_element_set_state((GstElement *)ctx->appsrc, GST_STATE_NULL);
+    gst_element_set_state(ctx->pipeline, GST_STATE_NULL);            
     g_hash_table_remove(hash_table, streamId);
     gst_object_unref(ctx->pipeline);
     gst_object_unref(ctx->appsrc);
@@ -210,6 +202,7 @@ void init_rtsp_server()
   GstRTSPMediaFactory *factory;
   GError *error = NULL;
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
+  
   setenv("GST_DEBUG", "3", 1);
   setenv("GST_DEBUG_FILE", "./loggggggggggggggggggggggg.log", 1);
 
@@ -223,7 +216,7 @@ void init_rtsp_server()
   g_object_set(server, "service", port, NULL);
   printf("initialized RTSP Server Listening on Port %s \n", port);
   mounts = gst_rtsp_server_get_mount_points(server);
-  // add_rtsp_stream("Streamid");
+  // add_rtsp_pipeline("Streamid");
 
   g_object_unref(mounts);
 
