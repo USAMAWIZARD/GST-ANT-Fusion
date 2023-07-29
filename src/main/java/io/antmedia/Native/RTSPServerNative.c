@@ -12,8 +12,6 @@ static char *port = "8554";
 GstRTSPMountPoints *mounts;
 GHashTable *hash_table;
 GstClockTime timestamp, duration;
-int key = 0;
-int i = 1;
 
 int add_rtsp_stream(gchar *streamId);
 void sendPacket(AVPacket *pktPointer, gchar *streamId);
@@ -76,16 +74,13 @@ void sendPacket(AVPacket *pktPointer, gchar *streamId)
 
       if ((pkt->flags & AV_PKT_FLAG_KEY))
       {
-        key = 1;
         printf("-----------------key--frame--------------------- \n");
       }
       else
       {
         GST_BUFFER_FLAG_SET(buffer, GST_BUFFER_FLAG_DELTA_UNIT);
       }
-
-      if (key == 1)
-        gst_app_src_push_buffer((GstAppSrc *)ctx->appsrc, buffer);
+      gst_app_src_push_buffer((GstAppSrc *)ctx->appsrc, buffer);
     }
   }
   else
@@ -94,12 +89,12 @@ void sendPacket(AVPacket *pktPointer, gchar *streamId)
 }
 void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
 {
-if (g_hash_table_contains(hash_table, streamId))
+  if (g_hash_table_contains(hash_table, streamId))
   {
-                                //register appropriate pipline
+    // register appropriate pipline
   }
-  else{
-    
+  else
+  {
   }
 }
 static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, gpointer streamid)
@@ -137,7 +132,7 @@ int add_gstreamer_pipeline(char *pipeline, char *streamId)
   {
 
     ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
-    sprintf(pipe, "appsrc name=%s is-live=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \" !  h264parse ! %s", streamId, pipeline);
+    sprintf(pipe, "appsrc  name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \" !  h264parse ! %s", streamId, pipeline);
     ctx->pipeline = gst_parse_launch(pipe, NULL);
     gst_element_set_state(ctx->pipeline, GST_STATE_PLAYING);
     ctx->pipeline_initialized = 1;
@@ -155,7 +150,7 @@ int add_rtsp_stream(gchar *streamId)
   gchar pipe[700];
   gchar mountpoint[30];
   factory = gst_rtsp_media_factory_new();
-  sprintf(pipe, "appsrc name=%s is-live=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \"  !  h264parse ! rtph264pay name=pay0 pt=96", streamId);
+  sprintf(pipe, "appsrc name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \"  !  h264parse ! rtph264pay name=pay0 pt=96", streamId);
 
   g_signal_connect(factory, "media-configure", (GCallback)media_configure, (gpointer)streamId);
 

@@ -1,6 +1,5 @@
 package io.antmedia.plugin;
 
-
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -19,13 +18,12 @@ import io.antmedia.plugin.api.IStreamListener;
 import io.vertx.core.Vertx;
 import io.antmedia.app.NativeInterface;
 
-
-@Component(value="plugin.myplugin")
-public class SamplePlugin extends NativeInterface  implements ApplicationContextAware, IStreamListener{
+@Component(value = "plugin.myplugin")
+public class SamplePlugin extends NativeInterface implements ApplicationContextAware, IStreamListener {
 
 	public static final String BEAN_NAME = "web.handler";
 	protected static Logger logger = LoggerFactory.getLogger(SamplePlugin.class);
-	
+
 	private Vertx vertx;
 	private SampleFrameListener frameListener = new SampleFrameListener();
 	private SamplePacketListener packetListener = new SamplePacketListener();
@@ -35,23 +33,19 @@ public class SamplePlugin extends NativeInterface  implements ApplicationContext
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		this.applicationContext = applicationContext;
 		vertx = (Vertx) applicationContext.getBean("vertxCore");
-		
+
 		AntMediaApplicationAdapter app = getApplication();
 		app.addStreamListener(this);
 	}
-		
-	public MuxAdaptor getMuxAdaptor(String streamId) 
-	{
+
+	public MuxAdaptor getMuxAdaptor(String streamId) {
 		AntMediaApplicationAdapter application = getApplication();
 		MuxAdaptor selectedMuxAdaptor = null;
 
-		if(application != null)
-		{
+		if (application != null) {
 			List<MuxAdaptor> muxAdaptors = application.getMuxAdaptors();
-			for (MuxAdaptor muxAdaptor : muxAdaptors) 
-			{
-				if (streamId.equals(muxAdaptor.getStreamId())) 
-				{
+			for (MuxAdaptor muxAdaptor : muxAdaptors) {
+				if (streamId.equals(muxAdaptor.getStreamId())) {
 					selectedMuxAdaptor = muxAdaptor;
 					break;
 				}
@@ -60,19 +54,21 @@ public class SamplePlugin extends NativeInterface  implements ApplicationContext
 
 		return selectedMuxAdaptor;
 	}
-	
+
 	public void register(String streamId) {
 		AntMediaApplicationAdapter app = getApplication();
-		app.addFrameListener(streamId, frameListener);		
+		app.addFrameListener(streamId, frameListener);
 		app.addPacketListener(streamId, packetListener);
 	}
-	public void register_pipeline(String streamId, String pipeline_type,  String pipeline){
+
+	public void register_pipeline(String streamId, String pipeline_type, String pipeline) {
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_pipeline(streamId, pipeline_type, pipeline);
 	}
+
 	public AntMediaApplicationAdapter getApplication() {
 		return (AntMediaApplicationAdapter) applicationContext.getBean(AntMediaApplicationAdapter.BEAN_NAME);
 	}
-	
+
 	public IFrameListener createCustomBroadcast(String streamId) {
 		AntMediaApplicationAdapter app = getApplication();
 		return app.createCustomBroadcast(streamId);
@@ -103,7 +99,7 @@ public class SamplePlugin extends NativeInterface  implements ApplicationContext
 
 	@Override
 	public void leftTheRoom(String roomId, String streamId) {
-		logger.info("*************** Stream Id:{} left the room:{} ***************", streamId, roomId);	
+		logger.info("*************** Stream Id:{} left the room:{} ***************", streamId, roomId);
 	}
 
 }

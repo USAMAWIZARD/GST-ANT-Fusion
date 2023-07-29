@@ -28,7 +28,6 @@ public class RestService {
 	protected ServletContext servletContext;
 	Gson gson = new Gson();
 
-	
 	@POST
 	@Path("/register/{streamId}")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -39,19 +38,21 @@ public class RestService {
 
 		return Response.status(Status.OK).entity("").build();
 	}
-	
+
 	@POST
 	@Path("/register-pipeline")
 	@Produces(MediaType.APPLICATION_JSON)
 	@Consumes(MediaType.APPLICATION_JSON)
-	public Response register_pipeline(@PathParam("streamId") String streamId,@PathParam("pipeline_type") String pipeline_type,@PathParam("pipeline") String pipeline) {
+	public Response register_pipeline(@PathParam("streamId") String streamId,
+			@PathParam("pipeline_type") String pipeline_type, @PathParam("pipeline") String pipeline) {
 		SamplePlugin app = getPluginApp();
-		app.register_pipeline(streamId,pipeline_type,pipeline);
+		app.register_pipeline(streamId, pipeline_type, pipeline);
 		return Response.status(Status.OK).entity("").build();
 	}
-	
+
 	private SamplePlugin getPluginApp() {
-		ApplicationContext appCtx = (ApplicationContext) servletContext.getAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE);
+		ApplicationContext appCtx = (ApplicationContext) servletContext
+				.getAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE);
 		return (SamplePlugin) appCtx.getBean("plugin.myplugin");
 	}
 }
