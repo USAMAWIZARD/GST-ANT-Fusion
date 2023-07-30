@@ -9,6 +9,8 @@ REST should support ffmpeg pipileine
 REST should support gstreamer pipileine 
 REST should support sending to kenisis
 should support python 
+SRT
+
 suould support ams to gst ----back to asm streams wit gstreamer pipeline
 Tricripber https://rustrepo.com/repo/gstreamer-plugin-for-speech-to-text-using-the-vosk-toolkit
 

@@ -7,7 +7,7 @@ public class NativeInterface {
     public static interface JNA_RTSP_SERVER extends Library {
         JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native/libGstRTSP.so", JNA_RTSP_SERVER.class);
 
-        void sendPacket(long pktPointer, String streamId);
+        void onPacket(long pktPointer, String streamId, int pktType);
 
         void init_rtsp_server();
 

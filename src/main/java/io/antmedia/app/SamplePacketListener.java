@@ -10,6 +10,7 @@ import io.antmedia.plugin.api.IPacketListener;
 import io.antmedia.plugin.api.StreamParametersInfo;
 import io.antmedia.app.NativeInterface;
 
+	
 public class SamplePacketListener extends NativeInterface implements IPacketListener {
 	static int is_init = 0;
 
@@ -35,7 +36,7 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 
 	@Override
 	public AVPacket onVideoPacket(String streamId, AVPacket packet) {
-		NativeInterface.JNA_RTSP_SERVER.INSTANCE.sendPacket(packet.address(), streamId);
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(), streamId,0);
 		packetCount++;
 		return packet;
 	}
