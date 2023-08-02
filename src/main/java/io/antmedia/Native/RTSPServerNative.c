@@ -47,17 +47,6 @@ void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline);
 int add_gstreamer_pipeline(char *pipeline, char *streamId);
 int add_rtsp_pipeline(gchar *streamId);
 
-void check_err(int exp, char *msg, int is_exit)
-{
-  if (!exp)
-  {
-    perror(msg);
-    if (is_exit)
-    {
-      exit(EXIT_FAILURE);
-    }
-  }
-}
 void onPacket(AVPacket *pktPointer, gchar *streamId, int pktType)
 {
   AVPacket *pkt = (AVPacket *)pktPointer;
@@ -155,7 +144,7 @@ void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
       // rtmpsink
 
       char rtp_pipe[128];
-      sprintf(rtp_pipe, "rtph264pay ! %s host=%s port=%s", "udpsink", "localhost", "8000"); // TODO: make generic for major protocols
+      sprintf(rtp_pipe, "rtph264pay ! %s host=%s port=%s", "udpsink", "127.0.0.1", "8000"); // TODO: make generic for major protocols
       add_gstreamer_pipeline(rtp_pipe, streamId);
     }
     else
@@ -274,7 +263,7 @@ void init_rtsp_server()
 
   loop = g_main_loop_new(NULL, FALSE);
   server = gst_rtsp_server_new();
-  check_err(server != NULL, "nullllllllllllllllllllllllllllllllllllllllllllllllllllll", 1);
+  g_assert(server);
 
   g_object_set(server, "service", port, NULL);
   printf("initialized RTSP Server Listening on Port %s \n", port);

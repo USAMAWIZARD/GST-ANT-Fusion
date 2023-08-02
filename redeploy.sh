@@ -19,3 +19,6 @@ if [ $OUT -ne 0 ]; then
 fi
 cd /usr/local/antmedia
 ./start-debug.sh
+
+
+

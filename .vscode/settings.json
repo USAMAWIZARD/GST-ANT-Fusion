@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "thread": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "assert.h": "c"
     }
 }
