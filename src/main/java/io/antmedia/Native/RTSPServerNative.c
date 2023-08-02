@@ -2,7 +2,6 @@
 #define PIPE_FFMPEG "FFmpeg"
 #define PIPE_RTSP "RTSP"
 #define RTP_OUT "RTP_OUT"
-
 #define PACKET_TYPE_VIDEO 0
 #define PACKET_TYPE_AUDIO 1
 
@@ -46,6 +45,7 @@ void init_rtsp_server();
 void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline);
 int add_gstreamer_pipeline(char *pipeline, char *streamId);
 int add_rtsp_pipeline(gchar *streamId);
+
 
 void onPacket(AVPacket *pktPointer, gchar *streamId, int pktType)
 {
@@ -119,12 +119,23 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
     gst_object_unref(element);
   }
 }
+static gboolean
+timeout (GstRTSPServer * server)
+{
+  GstRTSPSessionPool *pool;
 
+  pool = gst_rtsp_server_get_session_pool (server);
+  gst_rtsp_session_pool_cleanup (pool);
+  g_object_unref (pool);
+
+  return TRUE;
+}
 void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
 {
   // register appropriate pipline
   if (g_hash_table_contains(hash_table, streamId))
   {
+
     if (g_strcmp0(pipeline_type, PIPE_GSTREAMER) == 0)
     {
       add_gstreamer_pipeline(pipeline, streamId);
@@ -160,12 +171,75 @@ void register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
   }
 }
 
+//rtsp section
+
+void init_rtsp_server() {
+  GMainLoop *loop;
+  GstRTSPServer *server;
+  GstRTSPMediaFactory *factory;
+  GError *error = NULL;
+  hash_table = g_hash_table_new(g_str_hash, g_str_equal);
+
+  setenv("GST_DEBUG", "3", 1);
+  setenv("GST_DEBUG_FILE", "./loggggggggggggggggggggggg.log", 1);
+
+  gst_init(NULL, NULL);
+  g_print("-----------------------------------------------%s /n", getenv("GST_DEBUG"));
+
+  loop = g_main_loop_new(NULL, FALSE);
+  server = gst_rtsp_server_new();
+  g_assert(server);
+
+  //g_object_set(server, "service", port, NULL);
+  printf("initialized RTSP Server Listening on Port %s \n", port);
+  mounts = gst_rtsp_server_get_mount_points(server);
+  // add_rtsp_pipeline("Streamid");
+
+  g_object_unref(mounts);
+
+  gst_rtsp_server_attach(server, NULL);
+  g_timeout_add_seconds (2, (GSourceFunc) timeout, server);
+
+  g_main_loop_run(loop);
+}
+static void
+media_constructed (GstRTSPMediaFactory * factory, GstRTSPMedia * media)
+{
+  guint i, n_streams;
+
+  n_streams = gst_rtsp_media_n_streams (media);
+
+  for (i = 0; i < n_streams; i++) {
+    GstRTSPAddressPool *pool;
+    GstRTSPStream *stream;
+    gchar *min, *max;
+
+    stream = gst_rtsp_media_get_stream (media, i);
+
+    /* make a new address pool */
+    pool = gst_rtsp_address_pool_new ();
+
+    min = g_strdup_printf ("224.3.0.%d", (2 * i) + 1);
+    max = g_strdup_printf ("224.3.0.%d", (2 * i) + 2);
+    gst_rtsp_address_pool_add_range (pool, min, max,
+        5000 + (10 * i), 5010 + (10 * i), 1);
+    g_free (min);
+    g_free (max);
+
+    gst_rtsp_stream_set_address_pool (stream, pool);
+    g_object_unref (pool);
+  }
+}
+
 int add_rtsp_pipeline(gchar *streamId)
 {
   GstRTSPMediaFactory *factory;
   gchar pipe[700];
   gchar mountpoint[30];
   factory = gst_rtsp_media_factory_new();
+    gst_rtsp_media_factory_set_shared (factory, TRUE);
+  g_signal_connect (factory, "media-constructed", (GCallback)
+      media_constructed, NULL);
   // video only pipeline
    sprintf(pipe, "appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \"  !  h264parse ! rtph264pay name=pay0 pt=96", streamId);
 
@@ -182,6 +256,8 @@ int add_rtsp_pipeline(gchar *streamId)
   g_print("New stream ready at rtsp://127.0.0.1:%s/%s\n", port, streamId);
 }
 
+
+//gstreamer s
 int add_gstreamer_pipeline(char *pipeline, char *streamId)
 {
   gchar pipe[700];
@@ -232,7 +308,10 @@ void register_stream(char *streamId)
   ctx->pipeline_initialized = 0;
   g_hash_table_insert(hash_table, streamId, ctx);
 
+  add_rtsp_pipeline(streamId);
+
   printf("added stream id\n");
+  
 }
 void unregister_stream(char *streamId)
 {
@@ -246,33 +325,4 @@ void unregister_stream(char *streamId)
     gst_object_unref(ctx->videoappsrc);
     printf("stream unregistered\n");
   }
-}
-void init_rtsp_server()
-{
-  GMainLoop *loop;
-  GstRTSPServer *server;
-  GstRTSPMediaFactory *factory;
-  GError *error = NULL;
-  hash_table = g_hash_table_new(g_str_hash, g_str_equal);
-
-  setenv("GST_DEBUG", "3", 1);
-  setenv("GST_DEBUG_FILE", "./loggggggggggggggggggggggg.log", 1);
-
-  gst_init(NULL, NULL);
-  g_print("-----------------------------------------------%s /n", getenv("GST_DEBUG"));
-
-  loop = g_main_loop_new(NULL, FALSE);
-  server = gst_rtsp_server_new();
-  g_assert(server);
-
-  g_object_set(server, "service", port, NULL);
-  printf("initialized RTSP Server Listening on Port %s \n", port);
-  mounts = gst_rtsp_server_get_mount_points(server);
-  // add_rtsp_pipeline("Streamid");
-
-  g_object_unref(mounts);
-
-  gst_rtsp_server_attach(server, NULL);
-
-  g_main_loop_run(loop);
 }
