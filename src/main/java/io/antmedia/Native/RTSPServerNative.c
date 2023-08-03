@@ -51,11 +51,9 @@ void onPacket(AVPacket *pktPointer, gchar *streamId, int pktType)
 {
   AVPacket *pkt = (AVPacket *)pktPointer;
   // printf("Packet PTS %s: %ld %ld\n ", id, pkt->pts, pkt->dts);
-
   if (g_hash_table_contains(hash_table, streamId))
   {
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
-
     if (ctx->pipeline_initialized)
     {
       GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
@@ -306,7 +304,7 @@ void register_stream(char *streamId)
   printf("new streamid recived adding new stream : %s \n", streamId);
   StreamMap *ctx = g_new0(StreamMap, 1);
   ctx->pipeline_initialized = 0;
-  g_hash_table_insert(hash_table, streamId, ctx);
+  g_hash_table_insert(hash_table,strdup ( streamId ), ctx);
 
   add_rtsp_pipeline(streamId);
 
