@@ -54,7 +54,7 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 		int streamType =0;
 		System.err.println("salskjdlaksdjaladlketVideoStreamInfo()");
 		System.out.println("SamplePacketListener.setVideoStreamInfo()");
-
+		System.err.flush();
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , codecPar, getTimeBase,streamType);
 		
 	}

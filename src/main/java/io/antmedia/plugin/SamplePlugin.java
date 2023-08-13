@@ -59,14 +59,14 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 
 	public void register(String streamId) {
 		AntMediaApplicationAdapter app = getApplication();
-		
+
 		app.addFrameListener(streamId, frameListener);
 		app.addPacketListener(streamId, packetListener);
 	}
 
 	public String register_pipeline(String streamId, String pipeline_type, String pipeline) {
-		String err = NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_pipeline(streamId, pipeline_type, pipeline);	
-		System.out.println(err+"---------------------------------------------------------------");
+		String err = NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_pipeline(streamId, pipeline_type, pipeline);
+		System.out.println(err + "---------------------------------------------------------------");
 		return err;
 	}
 
@@ -85,11 +85,12 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 
 	@Override
 	public void streamStarted(String streamId) {
-		logger.info("*************** Stream Started: {} ***************", streamId);
 		AntMediaApplicationAdapter app = getApplication();
-		NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
-		if(app.getName() !="rtmpout")
+		if (!app.getName().equals("rtmpout")) {
+			logger.info("*************** Stream Started: {} {} ***************",app.getName() , streamId);
+			NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
 			app.addPacketListener(streamId, packetListener);
+		}
 	}
 
 	@Override

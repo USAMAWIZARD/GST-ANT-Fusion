@@ -64,9 +64,16 @@ public class RestService {
 	public Response register_pipeline(@ApiParam(value = "casdfasdfasdf", required = true) RequestPipeline Request) {
 		System.out.println("Registering Pipeline");
 		SamplePlugin app = getPluginApp();
+
+		if(Request.pipeline==null)
+			if(Request.pipeline_type.equals("Gstreamer"))
+				return Response.status(Status.OK).entity(new Result(false, "Please Specify your Gstreamer Pipeline")).build(); 
+			else
+				Request.pipeline="null";
+
 		String response = app.register_pipeline(Request.streamId, Request.pipeline_type, Request.pipeline);
 		if (response == null) {
-			return Response.status(Status.OK).entity("").build();
+			return Response.status(Status.OK).entity(new Result(true, "Pipeline Registered Sucsessfully")).build();
 		}
 		return Response.status(Status.EXPECTATION_FAILED).entity(new Result(false, response)).build();
 	}

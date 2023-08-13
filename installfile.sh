@@ -12,3 +12,8 @@ sudo apt install libnginx-mod-rtmp
 # ./auto/configure --with-http_ssl_module --add-module=../nginx-rtmp-module-dev
 # make
 # sudo make install
+
+settings.webRTCEnabled=false
+settings.hlsMuxingEnabled=false
+dashHttpStreaming=false
+rtmpPlaybackEnabled=true

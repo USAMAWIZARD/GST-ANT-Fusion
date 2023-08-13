@@ -56,7 +56,7 @@ typedef struct
 // }pipeline_deatils;
 
 void onPacket(AVPacket *pkt, gchar *streamId, int pktType);
-void enit_rtsp_server();
+void init_rtsp_server();
 char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline);
 char *add_gstreamer_pipeline(char *pipeline, char *streamId);
 char *add_rtsp_pipeline(gchar *streamId);

@@ -4,6 +4,7 @@
         "atomic": "c",
         "sstream": "c",
         "system_error": "c",
-        "avcodec.h": "c"
+        "avcodec.h": "c",
+        "mathematics.h": "c"
     }
 }
