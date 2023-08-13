@@ -1,4 +1,7 @@
+io/antmedia/app/NativeInterface.class
+io/antmedia/app/NativeInterface$JNA_RTSP_SERVER.class
 io/antmedia/app/SampleFrameListener.class
+io/antmedia/plugin/SamplePlugin.class
+io/antmedia/rest/RequestPipeline.class
 io/antmedia/app/SamplePacketListener.class
 io/antmedia/rest/RestService.class
-io/antmedia/plugin/SamplePlugin.class

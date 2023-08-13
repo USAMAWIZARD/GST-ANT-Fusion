@@ -1,0 +1,28 @@
+Audio
+
+//webrtc annexb-> plugin
+//rstp   annexb-> plugin
+annexedb filter
+crashing
+
+rtmp output
+
+
+AMS---------->sinksink---------> ant media 
+
+rtmpclient vlc 
+    
+
+http ---------http
+
+
+pipeline = "teee sdlajdlk"
+
+GstElement* pipe = gst_parse_launch(pipeline)
+
+free(pipeline)
+
+
+appsrc ! tee ! queue ! pipeline
+
+tee  ! pipeline

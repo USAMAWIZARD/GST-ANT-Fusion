@@ -9,6 +9,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 
+import com.sun.jna.Pointer;
+
 import io.antmedia.AntMediaApplicationAdapter;
 import io.antmedia.app.SampleFrameListener;
 import io.antmedia.app.SamplePacketListener;
@@ -57,12 +59,15 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 
 	public void register(String streamId) {
 		AntMediaApplicationAdapter app = getApplication();
+		
 		app.addFrameListener(streamId, frameListener);
 		app.addPacketListener(streamId, packetListener);
 	}
 
-	public void register_pipeline(String streamId, String pipeline_type, String pipeline) {
-		NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_pipeline(streamId, pipeline_type, pipeline);
+	public String register_pipeline(String streamId, String pipeline_type, String pipeline) {
+		String err = NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_pipeline(streamId, pipeline_type, pipeline);	
+		System.out.println(err+"---------------------------------------------------------------");
+		return err;
 	}
 
 	public AntMediaApplicationAdapter getApplication() {
@@ -83,7 +88,8 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 		logger.info("*************** Stream Started: {} ***************", streamId);
 		AntMediaApplicationAdapter app = getApplication();
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
-		app.addPacketListener(streamId, packetListener);
+		if(app.getName() !="rtmpout")
+			app.addPacketListener(streamId, packetListener);
 	}
 
 	@Override

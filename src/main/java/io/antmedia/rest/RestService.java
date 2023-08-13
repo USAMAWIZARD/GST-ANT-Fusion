@@ -25,22 +25,21 @@ import io.swagger.annotations.ApiModelProperty;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiModelProperty;
+import io.antmedia.rest.model.Result;
 
-class RequestPipeline{
+class RequestPipeline {
 	@ApiModelProperty(value = "Stream Id to register")
 	public String streamId;
 
-	@ApiModelProperty(value = "pipeline type to play")
+	@ApiModelProperty(value = "pipeline type Gstreamer/RTP/FFmpeg")
 	public String pipeline_type;
 
-	@ApiModelProperty(value = "actual gstremaer of ffmpeg pipelien Pass your own pipeline")
+	@ApiModelProperty(value = "actual gstremaer of ffmpeg pipelien Pass your own pipeline", required = false)
 	public String pipeline;
 }
 
-
-
 @Component
-@Path("/sample-plugin") 
+@Path("/sample-plugin")
 public class RestService {
 
 	@Context
@@ -63,17 +62,14 @@ public class RestService {
 	@Produces({ MediaType.APPLICATION_JSON })
 	@Consumes(MediaType.APPLICATION_JSON)
 	public Response register_pipeline(@ApiParam(value = "casdfasdfasdf", required = true) RequestPipeline Request) {
-		System.out.println("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu\n");
-		System.out.println("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu\n");
-
+		System.out.println("Registering Pipeline");
 		SamplePlugin app = getPluginApp();
-		app.register_pipeline(Request.streamId, Request.pipeline_type, Request.pipeline);
-		return Response.status(Status.OK).entity("").build();
-		
+		String response = app.register_pipeline(Request.streamId, Request.pipeline_type, Request.pipeline);
+		if (response == null) {
+			return Response.status(Status.OK).entity("").build();
+		}
+		return Response.status(Status.EXPECTATION_FAILED).entity(new Result(false, response)).build();
 	}
-
-
-	
 
 	private SamplePlugin getPluginApp() {
 		ApplicationContext appCtx = (ApplicationContext) servletContext

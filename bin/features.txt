@@ -1,0 +1,24 @@
+should support
+
+Injest and Egress
+rtp 
+
+try to use hardware decoder
+REST should support RTSP pipileine 
+REST should support ffmpeg pipileine 
+REST should support gstreamer pipileine 
+REST should support sending to kenisis
+should support python 
+SRT
+
+suould support ams to gst ----back to asm streams wit gstreamer pipeline
+Tricripber https://rustrepo.com/repo/gstreamer-plugin-for-speech-to-text-using-the-vosk-toolkit
+
+
+https://medium.com/@mtlazul/gstinference-performing-tensorflow-inference-on-gstreamer-52b64b2df07e
+https://sahilchachra.medium.com/all-you-want-to-get-started-with-gstreamer-in-python-2276d9ed548e
+https://www.it-jim.com/blog/gstreamer-for-computer-vision-and-audio-processing/
+
+
+
+

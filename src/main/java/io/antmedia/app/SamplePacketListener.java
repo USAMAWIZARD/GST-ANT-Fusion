@@ -49,7 +49,14 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 
 	@Override
 	public void setVideoStreamInfo(String streamId, StreamParametersInfo videoStreamInfo) {
+		long codecPar = videoStreamInfo.getCodecParameters().address();
+		long getTimeBase = videoStreamInfo.getTimeBase().address();
+		int streamType =0;
+		System.err.println("salskjdlaksdjaladlketVideoStreamInfo()");
 		System.out.println("SamplePacketListener.setVideoStreamInfo()");
+
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , codecPar, getTimeBase,streamType);
+		
 	}
 
 	@Override
