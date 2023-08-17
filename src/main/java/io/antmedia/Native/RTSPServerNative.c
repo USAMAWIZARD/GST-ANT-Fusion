@@ -42,6 +42,7 @@ typedef struct
   volatile gboolean pipeline_initialized;
   AVPacket *video_avpkt;
   AVPacket *audio_avpkt;
+  AVBSFContext *bsfContext;
 } StreamMap;
 
 // TODO: do something with this
@@ -71,7 +72,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
     if (ctx->pipeline_initialized && ctx->videopar != NULL)
     {
-      int ret = av_bsf_send_packet(bsfContext, pkt);
+   int ret = av_bsf_send_packet(ctx->bsfContext, pkt);
       if (ret != 0 && ret != AVERROR(EAGAIN))
       {
         av_strerror(ret, av_err_buffer, AV_ERROR_BUFFER_SIZE);
@@ -79,7 +80,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
         fprintf(stdout, "can't push av_packet to filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
         return;
       }
-      ret = av_bsf_receive_packet(bsfContext, ctx->video_avpkt);
+      ret = av_bsf_receive_packet(ctx->bsfContext, ctx->video_avpkt);
       if (ret != 0 && ret != AVERROR(EAGAIN))
       {
         av_strerror(ret, av_err_buffer, AV_ERROR_BUFFER_SIZE);
@@ -185,18 +186,13 @@ char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
       char rtp_pipe[128];
       sprintf(rtp_pipe, "flvmux ! rtmpsink location=rtmp://127.0.0.1/rtmpout?streamid=rtmpout/%s_rtmp_out", streamId);
       char *err = add_gstreamer_pipeline(rtp_pipe, streamId);
-
     }
 
     else if (g_strcmp0(pipeline_type, RTP_OUT) == 0)
     {
-      // RTP
-      // SRT
-      // rtmpsink
-
       char rtp_pipe[128];
       sprintf(rtp_pipe, "rtph264pay ! %s host=%s port=%s", "udpsink", "127.0.0.1", "8000"); // TODO: make generic for major protocols
-      char *err =add_gstreamer_pipeline(rtp_pipe, streamId);
+      char *err = add_gstreamer_pipeline(rtp_pipe, streamId);
     }
     else
     {
@@ -209,8 +205,8 @@ char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
   {
     char err[256];
     sprintf(err, "stream with streamId (%s) doesn't exist", streamId);
-    char * err_str = strdup(err);
-    return err_str; 
+    char *err_str = strdup(err);
+    return err_str;
 
     // sreamid not found
   }
@@ -231,8 +227,6 @@ void init_Codec(StreamMap *stream)
   // bsfContext.time_base_in(videoTimebase);
   // av_bsf_init(bsfContext);
   // videoTimebase = bsfContext.time_base_out();
-  if (bsfContext == NULL)
-  {
     printf("Initializing Filters \n");
     annexbfilter = av_bsf_get_by_name("h264_mp4toannexb");
 
@@ -240,18 +234,18 @@ void init_Codec(StreamMap *stream)
     {
       printf("can't find filter\n");
     }
-    printf("it didnt crash 1\n");
-    if (av_bsf_alloc(annexbfilter, &bsfContext) != 0)
+    printf("filter initialized \n");
+    if (av_bsf_alloc(annexbfilter, &stream->bsfContext) != 0)
     {
       printf("bsf allocation failed\n");
     }
 
-    printf("it didnt crash 2\n");
+    printf("filter allocated \n");
     AVCodecParameters *codecpar = stream->videopar;
-    avcodec_parameters_copy(bsfContext->par_in, codecpar);
-    printf("it didnt crash 3\n");
-    av_bsf_init(bsfContext);
-  }
+    avcodec_parameters_copy(stream->bsfContext->par_in, codecpar);
+    printf("parameters copied \n");
+    av_bsf_init(stream->bsfContext);
+  
   stream->video_avpkt = av_packet_alloc(); // remove from here and alloc only once
 
   printf("Filters Initialized \n");
@@ -272,7 +266,7 @@ void init_rtsp_server()
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 
   setenv("GST_DEBUG", "4", 1);
-  setenv("GST_DEBUG_FILE", "/home/usama/loggggggggggggggggggggggg.log", 1);
+  setenv("GST_DEBUG_FILE", "/home/usama/gstreamer.log", 1);
 
   gst_init(NULL, NULL);
   g_print("-----------------------------------------------%s \n", getenv("GST_DEBUG"));
@@ -285,7 +279,6 @@ void init_rtsp_server()
   printf("initialized RTSP Server Listening on Port %s \n", port);
 
   mounts = gst_rtsp_server_get_mount_points(server);
-  // add_rtsp_pipeline("Streamid");
 
   g_object_unref(mounts);
 
@@ -442,7 +435,7 @@ void register_stream(char *streamId)
   ctx->pipeline_initialized = 0;
   g_hash_table_insert(hash_table, strdup(streamId), ctx);
 
-  // add_rtsp_pipeline(strdup(streamId));
+  add_rtsp_pipeline(strdup(streamId));
 
   printf("registered  Stream %s\n", streamId);
 }

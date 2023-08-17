@@ -5,6 +5,9 @@
         "sstream": "c",
         "system_error": "c",
         "avcodec.h": "c",
-        "mathematics.h": "c"
+        "mathematics.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }

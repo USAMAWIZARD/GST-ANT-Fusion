@@ -4,10 +4,10 @@ Injest and Egress
 rtp 
 
 try to use hardware decoder
-REST should support RTSP pipileine 
-REST should support ffmpeg pipileine 
-REST should support gstreamer pipileine 
-REST should support sending to kenisis
+REST should support RTSP pipileine Done
+REST should support ffmpeg pipileine  
+REST should support gstreamer pipileine Done
+REST should support sending to kenisis 
 should support python 
 SRT
 
