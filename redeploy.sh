@@ -1,7 +1,7 @@
 #!/bin/sh
 AMS_DIR=/usr/local/antmedia/
 mvn clean install -Dmaven.javadoc.skip=true -Dmaven.test.skip=true -Dgpg.skip=true
-gcc -shared -fPIC -o /usr/local/antmedia/lib/native/libGstRTSP.so src/main/java/io/antmedia/Native/RTSPServerNative.c -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0` -lavcodec
+gcc -shared -fPIC -o /usr/local/antmedia/lib/native/libGstRTSP.so src/main/java/io/antmedia/Native/RTSPServerNative.c -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0` -lavcodec -lpthread
 
 OUT=$?
 

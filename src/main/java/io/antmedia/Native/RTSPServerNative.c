@@ -17,6 +17,8 @@
 #include <libavcodec/avcodec.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/mathematics.h>
+#include <pthread.h>
+
 
 #define AV_ERROR_BUFFER_SIZE 512
 static char *port = "8554";
@@ -24,6 +26,7 @@ GstRTSPMountPoints *mounts;
 GHashTable *hash_table;
 const AVBitStreamFilter *annexbfilter;
 AVBSFContext *bsfContext = NULL;
+pthread_mutex_t hashtable_mutex;
 
 AVCodecContext *codec_ctx;
 AVCodec *codec;
@@ -43,7 +46,7 @@ typedef struct
   AVPacket *video_avpkt;
   AVPacket *audio_avpkt;
   AVBSFContext *bsfContext;
-} StreamMap;
+} volatile StreamMap;
 
 // TODO: do something with this
 // typedef struct{
@@ -55,6 +58,7 @@ typedef struct
 //   char *port;
 // };
 // }pipeline_deatils;
+volatile int stream_count;
 
 void onPacket(AVPacket *pkt, gchar *streamId, int pktType);
 void init_rtsp_server();
@@ -72,7 +76,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
     if (ctx->pipeline_initialized && ctx->videopar != NULL)
     {
-   int ret = av_bsf_send_packet(ctx->bsfContext, pkt);
+      int ret = av_bsf_send_packet(ctx->bsfContext, pkt);
       if (ret != 0 && ret != AVERROR(EAGAIN))
       {
         av_strerror(ret, av_err_buffer, AV_ERROR_BUFFER_SIZE);
@@ -120,7 +124,8 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
 
   if (g_hash_table_contains(hash_table, streamId))
   {
-    g_print("-----------play-request-------------\n");
+    stream_count += 1;
+    g_print("-----------play-request-------------( %s )    %d\n", (char *)streamId, stream_count);
     GstElement *element, *videoappsrc, *audioappsrc;
     element = gst_rtsp_media_get_element(media);
 
@@ -140,8 +145,6 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
     ctx->audioappsrc = (GstAppSrc *)audioappsrc;
     ctx->pipeline_initialized = 1;
     ctx->pipeline = element;
-
-    gst_object_unref(element);
   }
   else
   {
@@ -227,25 +230,25 @@ void init_Codec(StreamMap *stream)
   // bsfContext.time_base_in(videoTimebase);
   // av_bsf_init(bsfContext);
   // videoTimebase = bsfContext.time_base_out();
-    printf("Initializing Filters \n");
-    annexbfilter = av_bsf_get_by_name("h264_mp4toannexb");
+  printf("Initializing Filters \n");
+  annexbfilter = av_bsf_get_by_name("h264_mp4toannexb");
 
-    if (annexbfilter == NULL)
-    {
-      printf("can't find filter\n");
-    }
-    printf("filter initialized \n");
-    if (av_bsf_alloc(annexbfilter, &stream->bsfContext) != 0)
-    {
-      printf("bsf allocation failed\n");
-    }
+  if (annexbfilter == NULL)
+  {
+    printf("can't find filter\n");
+  }
+  printf("filter initialized \n");
+  if (av_bsf_alloc(annexbfilter, &stream->bsfContext) != 0)
+  {
+    printf("bsf allocation failed\n");
+  }
 
-    printf("filter allocated \n");
-    AVCodecParameters *codecpar = stream->videopar;
-    avcodec_parameters_copy(stream->bsfContext->par_in, codecpar);
-    printf("parameters copied \n");
-    av_bsf_init(stream->bsfContext);
-  
+  printf("filter allocated \n");
+  AVCodecParameters *codecpar = stream->videopar;
+  avcodec_parameters_copy(stream->bsfContext->par_in, codecpar);
+  printf("parameters copied \n");
+  av_bsf_init(stream->bsfContext);
+
   stream->video_avpkt = av_packet_alloc(); // remove from here and alloc only once
 
   printf("Filters Initialized \n");
@@ -259,6 +262,7 @@ void init_rtsp_server()
   // if (file  == NULL){
 
   //}
+      pthread_mutex_init(&hashtable_mutex, NULL);
   GMainLoop *loop;
   GstRTSPServer *server;
   GstRTSPMediaFactory *factory;
@@ -340,7 +344,6 @@ char *add_rtsp_pipeline(gchar *streamId)
   sprintf(mountpoint, "/%s", streamId);
   gst_rtsp_mount_points_add_factory(mounts, mountpoint, factory);
   g_print("New stream ready at rtsp://127.0.0.1:%s/%s\n", port, streamId);
-
   return 0;
 }
 
@@ -439,36 +442,39 @@ void register_stream(char *streamId)
 
   printf("registered  Stream %s\n", streamId);
 }
-void unregister_stream(char *streamId) // setfault
+void unregister_stream(char *streamId) // TODO : Free allocated resources
 {
+  pthread_mutex_lock(&hashtable_mutex);
   char *streamid_d = strdup(streamId);
+
   if (g_hash_table_contains(hash_table, streamid_d))
   {
-    printf("unregistering Stream %s\n", streamid_d);
+    printf("unregistering Stream (%s)\n",streamid_d);
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamid_d);
-    if (ctx->videoappsrc != NULL)
+    if (ctx->pipeline != NULL)
     {
-      printf("unrefing video src to null\n ");
-      gst_object_unref(ctx->videoappsrc);
-      printf("video src set to null\n ");
-    }
-    else
-    {
-      printf("video src already null\n ");
-    }
-    if (ctx->pipeline != NULL) // crash ho sakta hai state check karna pade ga
-    {
+      printf("entering macro\n");
+      if(!GST_IS_ELEMENT(ctx->pipeline)){
+        printf("what the helllllllllll\n");
+      }
+      printf("exiting macro\n");
       // printf("%s\n",gst_element_set_state(ctx->pipeline));
       gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
-      printf("unrefing pipelien\n ");
+      ctx->pipeline = NULL;
+      printf("unrefing pipelien(%s)\n",streamid_d);
       gst_object_unref(ctx->pipeline);
-      printf("seted pipelien to null\n ");
+      printf("seted pipelien to null(%s)\n",streamid_d);
     }
     else
     {
       printf("pipelien already null\n ");
     }
     g_hash_table_remove(hash_table, streamid_d);
+    if (g_hash_table_contains(hash_table, streamid_d))
+    {
+      printf("-------------------------not freed for some reason\n");
+    }
+
     printf("stream unregistered %s\n", streamid_d);
   }
   else
@@ -476,4 +482,5 @@ void unregister_stream(char *streamId) // setfault
     printf("cannot unregistersream does not exist %s", streamid_d);
   }
   free(streamid_d);
+  pthread_mutex_unlock(&hashtable_mutex);
 }
