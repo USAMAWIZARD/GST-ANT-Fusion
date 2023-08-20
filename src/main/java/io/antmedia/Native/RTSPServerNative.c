@@ -113,7 +113,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
           fprintf(stdout, "can't recieve av_packet from filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
           return;
         }
-        pkt = ctx->video_avpkt;
+        pkt = ctx->video_avpkt;  //anexedb
         GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
         uint8_t *data = (uint8_t *)pkt->data;
         gst_buffer_fill(buffer, 0, data, pkt->size);
@@ -226,7 +226,7 @@ void parse_codec(StreamMap *ctx, parsed_data **data)
 enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_ctx, char *streamId, char *pipeline_type, char *pipeline)
 {
   // TODO: generate pipeline based on the codec
-  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"%s\"  ! h264parse name=video "
+  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"%s\" ! h264parse name=video "
   "appsrc name=audio_%s is-live=true do-timestamp=true  !  queue ! capsfilter caps=\"%s\"   name=audio  ",streamId, stream_ctx->video_caps,streamId,stream_ctx->audio_caps);
   
   // parsed_data *data = malloc(sizeof(parsed_data));
@@ -538,10 +538,15 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
       codec_context = avcodec_alloc_context3(decoder);
       avcodec_parameters_to_context(codec_context, codecPar);
       char *str_caps;
-      gst_ffmpeg_codecid_to_caps(ctx->videopar->codec_id, ctx->bsfContext, 1, &str_caps);
+      gst_ffmpeg_codecid_to_caps(ctx->videopar->codec_id, codec_context, 1, &str_caps);
       ctx->video_caps = str_caps;
       printf("got the video caps %s\n", str_caps);
       init_Codec(ctx);
+      //char *pipeline_out;
+      //enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, ctx, streamId, PIPE_RTSP, " ");
+      //printf("pipeline successfully generated : %s\n", pipeline_out);
+      //add_rtsp_pipeline(strdup(streamId), pipeline_out);
+      //printf("registered  Stream %s\n", streamId);
     }
     else if (stream_type == PACKET_TYPE_AUDIO)
     {
@@ -566,11 +571,6 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
        //char* strcaps = gst_caps_to_string(NULL);
        //printf("didn't crash\n");
        //printf("%s\n",strcaps );
-        char *pipeline_out;
-        enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, ctx, streamId, PIPE_RTSP, " ");
-        printf("pipeline successfully generated : %s\n", pipeline_out);
-        add_rtsp_pipeline(strdup(streamId), pipeline_out);
-        printf("registered  Stream %s\n", streamId);
     }
     else
     {
