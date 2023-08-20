@@ -6,6 +6,8 @@
 
 #define PACKET_TYPE_VIDEO 0
 #define PACKET_TYPE_AUDIO 1
+#define H264Parser "h264parse"
+#define OPUSParser "opusparse"
 
 #include <stdio.h>
 #include <libavutil/frame.h>
@@ -17,10 +19,8 @@
 #include <libavcodec/avcodec.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/mathematics.h>
-#include <pthread.h>
-
-
 #define AV_ERROR_BUFFER_SIZE 512
+
 static char *port = "8554";
 GstRTSPMountPoints *mounts;
 GHashTable *hash_table;
@@ -48,6 +48,19 @@ typedef struct
   AVBSFContext *bsfContext;
 } volatile StreamMap;
 
+typedef struct
+{
+  char *audioparser;
+  char *videoparser;
+} parsed_data;
+
+enum PIPELINE_TYPE
+{
+  PIPELINE_TYPE_GSTREAMER,
+  PIPELINE_TYPE_RTSP,
+  PIPELINE_TYPE_FFMPEG,
+  PIPELINE_TYPE_ERROR,
+};
 // TODO: do something with this
 // typedef struct{
 // char *streamid;
@@ -63,8 +76,8 @@ volatile int stream_count;
 void onPacket(AVPacket *pkt, gchar *streamId, int pktType);
 void init_rtsp_server();
 char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline);
-char *add_gstreamer_pipeline(char *pipeline, char *streamId);
-char *add_rtsp_pipeline(gchar *streamId);
+char *add_gstreamer_pipeline(char *streamId, char *pipeline);
+char *add_rtsp_pipeline(gchar *streamId, char *pipeline);
 void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rational, int stream_type);
 void init_Codec(StreamMap *stream);
 
@@ -76,35 +89,39 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
     if (ctx->pipeline_initialized && ctx->videopar != NULL)
     {
-      int ret = av_bsf_send_packet(ctx->bsfContext, pkt);
-      if (ret != 0 && ret != AVERROR(EAGAIN))
-      {
-        av_strerror(ret, av_err_buffer, AV_ERROR_BUFFER_SIZE);
-        g_error("can't push av_packet to filter\n");
-        fprintf(stdout, "can't push av_packet to filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
-        return;
-      }
-      ret = av_bsf_receive_packet(ctx->bsfContext, ctx->video_avpkt);
-      if (ret != 0 && ret != AVERROR(EAGAIN))
-      {
-        av_strerror(ret, av_err_buffer, AV_ERROR_BUFFER_SIZE);
-        fprintf(stdout, "can't recieve av_packet from filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
-        return;
-      }
-      pkt = ctx->video_avpkt;
-      GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
-      uint8_t *data = (uint8_t *)pkt->data;
-      gst_buffer_fill(buffer, 0, data, pkt->size);
-
-      g_assert(ctx->videoappsrc);
       if (pktType == PACKET_TYPE_VIDEO)
       {
+        int ret = av_bsf_send_packet(ctx->bsfContext, pkt);
+        if (ret != 0 && ret != AVERROR(EAGAIN))
+        {
+          av_strerror(ret, av_err_buffer, AV_ERROR_BUFFER_SIZE);
+          g_error("can't push av_packet to filter\n");
+          fprintf(stdout, "can't push av_packet to filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
+          return;
+        }
+        ret = av_bsf_receive_packet(ctx->bsfContext, ctx->video_avpkt);
+        if (ret != 0 && ret != AVERROR(EAGAIN))
+        {
+          av_strerror(ret, av_err_buffer, AV_ERROR_BUFFER_SIZE);
+          fprintf(stdout, "can't recieve av_packet from filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
+          return;
+        }
+        pkt = ctx->video_avpkt;
+        GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
+        uint8_t *data = (uint8_t *)pkt->data;
+        gst_buffer_fill(buffer, 0, data, pkt->size);
+        g_assert(ctx->videoappsrc);
         gst_app_src_push_buffer((GstAppSrc *)ctx->videoappsrc, buffer);
       }
       else if (pktType == PACKET_TYPE_AUDIO)
       {
-        // TODO:
+        // TODO: add audio shit
+        GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
+        uint8_t *data = (uint8_t *)pkt->data;
+        gst_buffer_fill(buffer, 0, data, pkt->size);
+        g_assert(ctx->audioappsrc);
         gst_app_src_push_buffer((GstAppSrc *)ctx->audioappsrc, buffer);
+        printf("wroten audio packet\n");
       }
       else
       {
@@ -131,6 +148,7 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
 
     char app_src[128];
     sprintf(app_src, "video_%s", (char *)streamId);
+
     videoappsrc = gst_bin_get_by_name_recurse_up(GST_BIN(element), (gchar *)app_src);
     // printf("initializing video app src %s\n",app_src);
 
@@ -139,10 +157,12 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
 
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, (gchar *)streamId);
     g_assert(videoappsrc);
+    g_assert(audioappsrc);
 
     ctx->videoappsrc = (GstAppSrc *)videoappsrc;
     // printf("initializing video app src\n");
     ctx->audioappsrc = (GstAppSrc *)audioappsrc;
+    g_assert(ctx->videoappsrc != ctx->audioappsrc);
     ctx->pipeline_initialized = 1;
     ctx->pipeline = element;
   }
@@ -162,55 +182,145 @@ timeout(GstRTSPServer *server)
 
   return TRUE;
 }
-char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline)
+char *strcat_dyn(char *str1, char *str2)
+{
+  size_t len1 = snprintf(NULL, 0, str1);
+  size_t len2 = snprintf(NULL, 0, str2);
+  char *str = malloc(sizeof(char) * (len1 + len2) + 1);
+  strcpy(str, str1);
+  strcpy(str + len1, str2);
+  return str;
+}
+void parse_codec(StreamMap *ctx, parsed_data **data)
+{
+  char *parser;
+  if (ctx->videopar != NULL)
+  {
+    if (ctx->videopar->codec_id == AV_CODEC_ID_H264)
+    {
+      parser = g_strdup_printf(" capsfilter caps=\"video/x-%s\"", "h264");
+      parser = strcat(parser, " ! " H264Parser);
+    }
+    else if (codec_ctx->codec_id == AV_CODEC_ID_VP8)
+    {
+      parser = g_strdup_printf(" capsfilter caps=\"video/x-%s\"", "vp8");
+    }
+    (*data)->videoparser = strdup(parser);
+  }
+  else if (ctx->audiopar != NULL)
+  {
+    if (ctx->videopar->codec_id == AV_CODEC_ID_OPUS)
+    {
+      parser = g_strdup_printf(" capsfilter caps=\"video/x-%s\"", "opus");
+      parser = strcat(parser, " ! " OPUSParser);
+    }
+    (*data)->audioparser = strdup(parser);
+  }
+}
+enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_ctx, char *streamId, char *pipeline_type, char *pipeline)
+{
+  // TODO: generate pipeline based on the codec
+  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264\"  ! h264parse name=video "
+                                          "appsrc name=audio_%s is-live=true do-timestamp=true  ! fakesink",
+                                          streamId, streamId);
+  // parsed_data *data = malloc(sizeof(parsed_data));
+  // parse_codec(stream_ctx, &data);
+
+  if (g_strcmp0(pipeline_type, PIPE_GSTREAMER) == 0)
+  {
+    *pipeline_out = strcat_dyn(common_pipeline, pipeline);
+    free(common_pipeline);
+    printf("pipeline generated : %s\n", *pipeline_out);
+    return PIPELINE_TYPE_GSTREAMER;
+  }
+  else if (g_strcmp0(pipeline_type, PIPE_RTSP) == 0)
+  {
+    printf("allocating rtsp pipeline\n");
+    *pipeline_out = strcat_dyn(common_pipeline, " video. !  rtph264pay pt=96 name=pay0 ");
+    free(common_pipeline);
+    printf("pipeline generated : %s\n", *pipeline_out);
+    return PIPELINE_TYPE_RTSP;
+  }
+  else if (g_strcmp0(pipeline_type, PIPE_RTMP) == 0)
+  {
+    char *rtmp_pipline = g_strdup_printf(" flvmux ! rtmpsink location=\"rtmp://127.0.0.1/rtmpout?streamid=rtmpout/%s_rtmp_out\"", streamId);
+    *pipeline_out = strcat_dyn(common_pipeline, rtmp_pipline);
+    free(rtmp_pipline);
+    printf("pipeline generated : %s\n", *pipeline_out);
+    return PIPELINE_TYPE_GSTREAMER;
+  }
+  else if (g_strcmp0(pipeline_type, RTP_OUT) == 0)
+  {
+    char *rtp_pipeline = g_strdup_printf(" rtph264pay ! %s host=%s port=%s", "udpsink", "127.0.0.1", "8000");
+    *pipeline_out = strcat_dyn(common_pipeline, rtp_pipeline);
+    free(rtp_pipeline);
+    printf("pipeline generated : %s\n", *pipeline_out);
+    return PIPELINE_TYPE_GSTREAMER;
+  }
+  else if (g_strcmp0(pipeline_type, PIPE_FFMPEG) == 0)
+  {
+  }
+  else
+  {
+    // invalid option
+    printf("handler on streamId (%s) for pipeline (%s) is not defined\n", streamId, pipeline_type);
+    return PIPELINE_TYPE_ERROR;
+  }
+
+  // TODO: generate pipeline based on the codec
+  // const char *STATIC_PIPELINE = "appsrc name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264\" !  h264parse ! %s";
+  // char *pipe = malloc(sizeof(char) * strlen(STATIC_PIPELINE) + strlen(streamId) + strlen(pipeline));
+  // sprintf(pipe, STATIC_PIPELINE, streamId, pipeline);
+  // printf("printing dynamically generated pipeline\n");
+  // printf("%s\n", pipe);
+}
+char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline) // Pipeline par is only for user's Custom pipeline otherwise we genrate our
 {
 
   // register appropriate pipline
   streamId = strdup(streamId);
   pipeline_type = strdup(pipeline_type);
   pipeline = strdup(pipeline);
+
   if (g_hash_table_contains(hash_table, streamId))
   {
 
-    if (g_strcmp0(pipeline_type, PIPE_GSTREAMER) == 0)
+    char *pipeline_out;
+
+    StreamMap *stream_ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
+    enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, stream_ctx, (char *)streamId, (char *)pipeline_type, (char *)pipeline);
+    switch (type)
     {
-      char *err = add_gstreamer_pipeline(pipeline, streamId);
+    case PIPELINE_TYPE_GSTREAMER:
+    {
+      char *err = add_gstreamer_pipeline(streamId, pipeline_out);
       return err;
     }
-    else if (g_strcmp0(pipeline_type, PIPE_FFMPEG) == 0)
+    case PIPELINE_TYPE_RTSP:
     {
+      char *err = add_rtsp_pipeline(streamId, pipeline_out);
+      return err;
     }
-    else if (g_strcmp0(pipeline_type, PIPE_RTSP) == 0)
+    case PIPELINE_TYPE_FFMPEG:
+    // fallthrough
+    case PIPELINE_TYPE_ERROR:
+    // fallthrough
+    default:
     {
-      add_rtsp_pipeline(streamId);
-    }
-    else if (g_strcmp0(pipeline_type, PIPE_RTMP) == 0)
-    {
-      char rtp_pipe[128];
-      sprintf(rtp_pipe, "flvmux ! rtmpsink location=rtmp://127.0.0.1/rtmpout?streamid=rtmpout/%s_rtmp_out", streamId);
-      char *err = add_gstreamer_pipeline(rtp_pipe, streamId);
-    }
 
-    else if (g_strcmp0(pipeline_type, RTP_OUT) == 0)
-    {
-      char rtp_pipe[128];
-      sprintf(rtp_pipe, "rtph264pay ! %s host=%s port=%s", "udpsink", "127.0.0.1", "8000"); // TODO: make generic for major protocols
-      char *err = add_gstreamer_pipeline(rtp_pipe, streamId);
+      char err[256];
+      sprintf(err, "handler for pipeline type (%s) not defined", pipeline_type);
+      char *err_str = strdup(err);
+      return err_str;
     }
-    else
-    {
-      // invalid option
-      printf("handler on streamId (%s) for pipeline (%s) is not defined\n", streamId, pipeline_type);
-      return 0;
     }
   }
   else
   {
     char err[256];
-    sprintf(err, "stream with streamId (%s) doesn't exist", streamId);
+    sprintf(err, "stream with streamId (%s) doesn't exist", streamId); // memory leak
     char *err_str = strdup(err);
     return err_str;
-
     // sreamid not found
   }
   return NULL;
@@ -262,15 +372,16 @@ void init_rtsp_server()
   // if (file  == NULL){
 
   //}
-      pthread_mutex_init(&hashtable_mutex, NULL);
+  pthread_mutex_init(&hashtable_mutex, NULL);
   GMainLoop *loop;
   GstRTSPServer *server;
   GstRTSPMediaFactory *factory;
   GError *error = NULL;
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 
-  setenv("GST_DEBUG", "4", 1);
-  setenv("GST_DEBUG_FILE", "/home/usama/gstreamer.log", 1);
+  setenv("GST_DEBUG", "3", 1);
+  setenv("GST_DEBUG_FILE", "/home/usama/gstlogs/gstreamer.log", 1);
+  setenv("GST_DEBUG_DUMP_DOT_DIR", "./", 1);
 
   gst_init(NULL, NULL);
   g_print("-----------------------------------------------%s \n", getenv("GST_DEBUG"));
@@ -321,25 +432,26 @@ media_constructed(GstRTSPMediaFactory *factory, GstRTSPMedia *media)
   }
 }
 
-char *add_rtsp_pipeline(gchar *streamId)
+char *add_rtsp_pipeline(gchar *streamId, char *pipeline)
 {
+  if (!g_hash_table_contains(hash_table, streamId))
+  {
+    size_t err_len = snprintf(NULL, 0, "streamId (%s) doesn't exists", streamId);
+    char *err = malloc(sizeof(char) * err_len);
+    sprintf(err, "streamId (%s) doesn't exists", streamId);
+    return err;
+  }
   GstRTSPMediaFactory *factory;
-  gchar pipe[700];
   gchar mountpoint[30];
   factory = gst_rtsp_media_factory_new();
   gst_rtsp_media_factory_set_shared(factory, TRUE);
   g_signal_connect(factory, "media-constructed", (GCallback)media_constructed, NULL);
-  // video only pipeline
-  // sprintf(pipe, "appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=high \"  !  h264parse ! rtph264pay name=pay0 pt=96", streamId);
-  sprintf(pipe, "appsrc name=video_%s is-live=true  do-timestamp=true  ! queue ! capsfilter caps=\"video/x-h264 \" ! h264parse   ! rtph264pay name=pay0 pt=96", streamId);
 
-  // audio video pipeline
-  // sprintf(pipe, "appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \"  !  h264parse ! rtph264pay name=pay0 pt=96 "
-  //"appsrc name=audio_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"audio/x-opus \" ! opusparse ! rtpopuspay name=pay1 pt=97 ", streamId,streamId);
+  StreamMap *stream_ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
 
   g_signal_connect(factory, "media-configure", (GCallback)media_configure, (gpointer)streamId);
 
-  gst_rtsp_media_factory_set_launch(factory, pipe);
+  gst_rtsp_media_factory_set_launch(factory, pipeline);
 
   sprintf(mountpoint, "/%s", streamId);
   gst_rtsp_mount_points_add_factory(mounts, mountpoint, factory);
@@ -348,28 +460,17 @@ char *add_rtsp_pipeline(gchar *streamId)
 }
 
 // gstreamer s
-char *add_gstreamer_pipeline(char *pipeline, char *streamId)
+char *add_gstreamer_pipeline(char *streamId, char *pipeline)
 {
-  gchar pipe[700];
+  gchar pipe[1200];
   gchar mountpoint[30];
   StreamMap *ctx;
   GError *err = NULL;
-
   if (g_hash_table_contains(hash_table, streamId))
   {
     ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
 
-    sprintf(pipe, "appsrc name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264\" !  h264parse ! %s", streamId, pipeline);
-
-    // video only
-    // sprintf(pipe, "appsrc name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264, alignment=(string)nal, stream-format=(string)byte-stream,profile=baseline \" !  h264parse ! %s",
-    //         streamId, pipeline);
-
-    // audio video
-
-    // printf("---------starting streamer pipeline-----------\n");
-    // printf("%s\n", pipe);
-    ctx->pipeline = gst_parse_launch(pipe, &err);
+    ctx->pipeline = gst_parse_launch(pipeline, &err);
     if (err != NULL)
     {
       printf("%s\n", err->message);
@@ -378,8 +479,14 @@ char *add_gstreamer_pipeline(char *pipeline, char *streamId)
       return error;
     }
     gst_element_set_state(ctx->pipeline, GST_STATE_PLAYING);
+
+    char appsrc[256];
+    sprintf(appsrc, "video_%s", streamId);
+    ctx->videoappsrc = (GstAppSrc *)gst_bin_get_by_name((GstBin *)ctx->pipeline, appsrc);
+
+    sprintf(appsrc, "audio_%s", (char *)streamId);
+    ctx->audioappsrc = gst_bin_get_by_name_recurse_up((GstBin *)ctx->pipeline, appsrc);
     ctx->pipeline_initialized = 1;
-    ctx->videoappsrc = (GstAppSrc *)gst_bin_get_by_name((GstBin *)ctx->pipeline, streamId);
     return 0;
   }
   else
@@ -397,7 +504,6 @@ int add_ffmpeg_pipeline(char *pipeline, char *streamId)
 void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rational, int stream_type) // yaha pe copy karna hai problem aasakta hai dealloc ka
 {
 
-  printf("setting Stream info\n");
   streamId = strdup(streamId);
 
   if (hash_table == NULL)
@@ -406,6 +512,7 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
   }
   if (g_hash_table_contains(hash_table, streamId))
   {
+
     if (codecPar == NULL)
     {
       printf("codec parameter is null\n");
@@ -414,23 +521,23 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
     if (stream_type == PACKET_TYPE_VIDEO)
     {
+      printf("setting Stream info VIDEO %s Codecid %d \n", streamId, codecPar->codec_id);
 
       ctx->videopar = codecPar;
       ctx->rational = rational;
-      g_print("Video Width: %d  ----------- Video Height %d \n", ctx->videopar->width, ctx->videopar->height);
       init_Codec(ctx);
     }
     else if (stream_type == PACKET_TYPE_AUDIO)
-      ctx->audiopar = codecPar;
-    printf("streaminfo set %s \n", streamId);
+    {
+       ctx->audiopar = codecPar;
+    }
+    else
+    {
+      printf("could not set the streaminfo ID does not exist\n");
+    }
+    free(streamId);
   }
-  else
-  {
-    printf("could not set the streaminfo ID does not exist\n");
-  }
-  free(streamId);
 }
-
 void register_stream(char *streamId)
 {
   printf("registering Stream %s\n", streamId);
@@ -438,8 +545,11 @@ void register_stream(char *streamId)
   ctx->pipeline_initialized = 0;
   g_hash_table_insert(hash_table, strdup(streamId), ctx);
 
-  add_rtsp_pipeline(strdup(streamId));
-
+  // TODO: why is this shit working in parallel with other gstreamer pipelines
+  char *pipeline_out;
+  enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, ctx, streamId, PIPE_RTSP, " ");
+  printf("pipeline successfully generated : %s\n", pipeline_out);
+  add_rtsp_pipeline(strdup(streamId), pipeline_out);
   printf("registered  Stream %s\n", streamId);
 }
 void unregister_stream(char *streamId) // TODO : Free allocated resources
@@ -449,21 +559,22 @@ void unregister_stream(char *streamId) // TODO : Free allocated resources
 
   if (g_hash_table_contains(hash_table, streamid_d))
   {
-    printf("unregistering Stream (%s)\n",streamid_d);
+    printf("unregistering Stream (%s)\n", streamid_d);
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamid_d);
     if (ctx->pipeline != NULL)
     {
       printf("entering macro\n");
-      if(!GST_IS_ELEMENT(ctx->pipeline)){
+      if (!GST_IS_ELEMENT(ctx->pipeline))
+      {
         printf("what the helllllllllll\n");
       }
       printf("exiting macro\n");
       // printf("%s\n",gst_element_set_state(ctx->pipeline));
       gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
       ctx->pipeline = NULL;
-      printf("unrefing pipelien(%s)\n",streamid_d);
+      printf("unrefing pipelien(%s)\n", streamid_d);
       gst_object_unref(ctx->pipeline);
-      printf("seted pipelien to null(%s)\n",streamid_d);
+      printf("seted pipelien to null(%s)\n", streamid_d);
     }
     else
     {
