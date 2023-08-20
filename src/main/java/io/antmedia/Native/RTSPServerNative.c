@@ -19,6 +19,11 @@
 #include <libavcodec/avcodec.h>
 #include <libavcodec/avcodec.h>
 #include <libavutil/mathematics.h>
+#include <gstreamer-1.0/gst/libav/gstav.h>
+#include <gst/audio/audio.h>
+
+#include <gstreamer-1.0/gst/video/video.h>
+
 #define AV_ERROR_BUFFER_SIZE 512
 
 static char *port = "8554";
@@ -46,6 +51,8 @@ typedef struct
   AVPacket *video_avpkt;
   AVPacket *audio_avpkt;
   AVBSFContext *bsfContext;
+  char *video_caps;
+  char *audio_caps;
 } volatile StreamMap;
 
 typedef struct
@@ -121,7 +128,6 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
         gst_buffer_fill(buffer, 0, data, pkt->size);
         g_assert(ctx->audioappsrc);
         gst_app_src_push_buffer((GstAppSrc *)ctx->audioappsrc, buffer);
-        printf("wroten audio packet\n");
       }
       else
       {
@@ -220,9 +226,9 @@ void parse_codec(StreamMap *ctx, parsed_data **data)
 enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_ctx, char *streamId, char *pipeline_type, char *pipeline)
 {
   // TODO: generate pipeline based on the codec
-  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264\"  ! h264parse name=video "
-                                          "appsrc name=audio_%s is-live=true do-timestamp=true  ! fakesink",
-                                          streamId, streamId);
+  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"%s\"  ! h264parse name=video "
+  "appsrc name=audio_%s is-live=true do-timestamp=true  !  queue ! capsfilter caps=\"%s\"   name=audio  ",streamId, stream_ctx->video_caps,streamId,stream_ctx->audio_caps);
+  
   // parsed_data *data = malloc(sizeof(parsed_data));
   // parse_codec(stream_ctx, &data);
 
@@ -236,7 +242,7 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   else if (g_strcmp0(pipeline_type, PIPE_RTSP) == 0)
   {
     printf("allocating rtsp pipeline\n");
-    *pipeline_out = strcat_dyn(common_pipeline, " video. !  rtph264pay pt=96 name=pay0 ");
+    *pipeline_out = strcat_dyn(common_pipeline, " video. !  rtph264pay pt=96 name=pay0 audio. ! rtpmp4apay pt=97 name=pay1  ");
     free(common_pipeline);
     printf("pipeline generated : %s\n", *pipeline_out);
     return PIPELINE_TYPE_RTSP;
@@ -379,8 +385,8 @@ void init_rtsp_server()
   GError *error = NULL;
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
 
-  setenv("GST_DEBUG", "3", 1);
-  setenv("GST_DEBUG_FILE", "/home/usama/gstlogs/gstreamer.log", 1);
+  setenv("GST_DEBUG", "4", 1);
+  setenv("GST_DEBUG_FILE", "/home/usama/gstlogs/gstreamer.log", 0);
   setenv("GST_DEBUG_DUMP_DOT_DIR", "./", 1);
 
   gst_init(NULL, NULL);
@@ -525,11 +531,46 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
 
       ctx->videopar = codecPar;
       ctx->rational = rational;
+      AVCodec *decoder;
+      AVCodecContext *codec_context;
+      decoder =
+          (AVCodec *)avcodec_find_decoder(ctx->videopar->codec_id);
+      codec_context = avcodec_alloc_context3(decoder);
+      avcodec_parameters_to_context(codec_context, codecPar);
+      char *str_caps;
+      gst_ffmpeg_codecid_to_caps(ctx->videopar->codec_id, ctx->bsfContext, 1, &str_caps);
+      ctx->video_caps = str_caps;
+      printf("got the video caps %s\n", str_caps);
       init_Codec(ctx);
     }
     else if (stream_type == PACKET_TYPE_AUDIO)
     {
        ctx->audiopar = codecPar;
+       AVCodec *decoder;
+       AVCodecContext *codec_context;
+       decoder =
+           (AVCodec *)avcodec_find_decoder(ctx->audiopar->codec_id);
+       codec_context = avcodec_alloc_context3(decoder);
+       avcodec_parameters_to_context(codec_context, codecPar);
+       char *str_caps;
+       gst_ffmpeg_codecid_to_caps(ctx->audiopar->codec_id, codec_context, 1,&str_caps);
+       printf(str_caps);
+       ctx->audio_caps = str_caps;
+       printf(ctx->audio_caps);
+       //printf("%p\n", caps);
+       //if (gst_caps_is_empty(caps))
+       //{
+       // printf("caps is empty\n");
+       //}
+       //printf("didn't crash\n");
+       //char* strcaps = gst_caps_to_string(NULL);
+       //printf("didn't crash\n");
+       //printf("%s\n",strcaps );
+        char *pipeline_out;
+        enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, ctx, streamId, PIPE_RTSP, " ");
+        printf("pipeline successfully generated : %s\n", pipeline_out);
+        add_rtsp_pipeline(strdup(streamId), pipeline_out);
+        printf("registered  Stream %s\n", streamId);
     }
     else
     {
@@ -545,12 +586,7 @@ void register_stream(char *streamId)
   ctx->pipeline_initialized = 0;
   g_hash_table_insert(hash_table, strdup(streamId), ctx);
 
-  // TODO: why is this shit working in parallel with other gstreamer pipelines
-  char *pipeline_out;
-  enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, ctx, streamId, PIPE_RTSP, " ");
-  printf("pipeline successfully generated : %s\n", pipeline_out);
-  add_rtsp_pipeline(strdup(streamId), pipeline_out);
-  printf("registered  Stream %s\n", streamId);
+
 }
 void unregister_stream(char *streamId) // TODO : Free allocated resources
 {

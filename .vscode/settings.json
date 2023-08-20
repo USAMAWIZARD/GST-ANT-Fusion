@@ -8,6 +8,21 @@
         "mathematics.h": "c",
         "array": "c",
         "string": "c",
-        "string_view": "c"
+        "string_view": "c",
+        "gstav.h": "c",
+        "gstavutils.h": "c",
+        "gstavcodecmap.h": "c",
+        "avformat.h": "c",
+        "swscale.h": "c",
+        "frame.h": "c",
+        "channel_layout.h": "c",
+        "gstavcfg.h": "c",
+        "string.h": "c",
+        "stdlib.h": "c",
+        "mem.h": "c",
+        "video-converter.h": "c",
+        "video.h": "c",
+        "gstavviddec.h": "c",
+        "gstavauddec.h": "c"
     }
 }
