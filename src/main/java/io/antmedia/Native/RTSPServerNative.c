@@ -113,7 +113,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
           fprintf(stdout, "can't recieve av_packet from filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
           return;
         }
-        pkt = ctx->video_avpkt;  //anexedb
+        pkt = ctx->video_avpkt;  //annexedb
         GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
         uint8_t *data = (uint8_t *)pkt->data;
         gst_buffer_fill(buffer, 0, data, pkt->size);
@@ -226,7 +226,7 @@ void parse_codec(StreamMap *ctx, parsed_data **data)
 enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_ctx, char *streamId, char *pipeline_type, char *pipeline)
 {
   // TODO: generate pipeline based on the codec
-  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"%s\" ! h264parse name=video "
+  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"%s\" name=video "
   "appsrc name=audio_%s is-live=true do-timestamp=true  !  queue ! capsfilter caps=\"%s\"   name=audio  ",streamId, stream_ctx->video_caps,streamId,stream_ctx->audio_caps);
   
   // parsed_data *data = malloc(sizeof(parsed_data));
