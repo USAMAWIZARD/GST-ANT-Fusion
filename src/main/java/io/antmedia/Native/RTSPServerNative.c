@@ -45,14 +45,18 @@ typedef struct
   GstAppSrc *audioappsrc;
   AVCodecParameters *audiopar;
   AVCodecParameters *videopar;
+  AVPacket *video_avpkt;
+  AVPacket *audio_avpkt;
+  char *video_caps;
+  char *audio_caps;
+  char *audio_playloader;
+  char *video_playloader;
+
   AVRational *rational;
   GstElement *pipeline;
   volatile gboolean pipeline_initialized;
-  AVPacket *video_avpkt;
-  AVPacket *audio_avpkt;
   AVBSFContext *bsfContext;
-  char *video_caps;
-  char *audio_caps;
+
 } volatile StreamMap;
 
 typedef struct
@@ -90,13 +94,12 @@ void init_Codec(StreamMap *stream);
 
 void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
 {
-
   if (g_hash_table_contains(hash_table, streamId))
   {
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
     if (ctx->pipeline_initialized && ctx->videopar != NULL)
     {
-      if (pktType == PACKET_TYPE_VIDEO)
+      if (pktType == PACKET_TYPE_VIDEO && ctx->bsfContext != NULL)
       {
         int ret = av_bsf_send_packet(ctx->bsfContext, pkt);
         if (ret != 0 && ret != AVERROR(EAGAIN))
@@ -113,7 +116,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
           fprintf(stdout, "can't recieve av_packet from filter: %s: %s:%d\n", av_err_buffer, __FILE__, __LINE__);
           return;
         }
-        pkt = ctx->video_avpkt;  //annexedb
+        pkt = ctx->video_avpkt; // annexedb
         GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
         uint8_t *data = (uint8_t *)pkt->data;
         gst_buffer_fill(buffer, 0, data, pkt->size);
@@ -166,11 +169,11 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
     g_assert(audioappsrc);
 
     ctx->videoappsrc = (GstAppSrc *)videoappsrc;
-    // printf("initializing video app src\n");
+    //printf("initializing video app src\n");
     ctx->audioappsrc = (GstAppSrc *)audioappsrc;
     g_assert(ctx->videoappsrc != ctx->audioappsrc);
-    ctx->pipeline_initialized = 1;
     ctx->pipeline = element;
+    ctx->pipeline_initialized = 1;
   }
   else
   {
@@ -197,54 +200,93 @@ char *strcat_dyn(char *str1, char *str2)
   strcpy(str + len1, str2);
   return str;
 }
-void parse_codec(StreamMap *ctx, parsed_data **data)
+parse_codec(StreamMap *ctx)
 {
-  char *parser;
+  char *str_caps;
+
+  AVCodec *decoder;
+  AVCodecContext *codec_context;
+
   if (ctx->videopar != NULL)
   {
+    decoder = (AVCodec *)avcodec_find_decoder(ctx->videopar->codec_id);
+    codec_context = avcodec_alloc_context3(decoder);
+    avcodec_parameters_to_context(codec_context, ctx->videopar);
+    gst_ffmpeg_codecid_to_caps(ctx->videopar->codec_id, ctx->bsfContext->par_out, 1, &str_caps);
+
+    ctx->video_caps = str_caps;
+
     if (ctx->videopar->codec_id == AV_CODEC_ID_H264)
     {
-      parser = g_strdup_printf(" capsfilter caps=\"video/x-%s\"", "h264");
-      parser = strcat(parser, " ! " H264Parser);
+      ctx->video_playloader = " rtph264pay  ";
     }
     else if (codec_ctx->codec_id == AV_CODEC_ID_VP8)
     {
-      parser = g_strdup_printf(" capsfilter caps=\"video/x-%s\"", "vp8");
+      ctx->video_playloader = " rtpvp8pay  ";
     }
-    (*data)->videoparser = strdup(parser);
+    printf("got the video caps %s\n", str_caps);
   }
-  else if (ctx->audiopar != NULL)
+  if (ctx->audiopar != NULL)
   {
-    if (ctx->videopar->codec_id == AV_CODEC_ID_OPUS)
+    decoder = (AVCodec *)avcodec_find_decoder(ctx->audiopar->codec_id);
+    codec_context = avcodec_alloc_context3(decoder);
+    avcodec_parameters_to_context(codec_context, ctx->audiopar);
+    gst_ffmpeg_codecid_to_caps(ctx->audiopar->codec_id, codec_context, 1, &str_caps);
+    ctx->audio_caps = str_caps;
+
+    if (ctx->audiopar->codec_id == AV_CODEC_ID_OPUS)
     {
-      parser = g_strdup_printf(" capsfilter caps=\"video/x-%s\"", "opus");
-      parser = strcat(parser, " ! " OPUSParser);
+      ctx->audio_playloader = " rtpopuspay ";
     }
-    (*data)->audioparser = strdup(parser);
+    if (ctx->audiopar->codec_id == AV_CODEC_ID_AAC || ctx->audiopar->codec_id == AV_CODEC_ID_AAC_LATM)
+    {
+      ctx->audio_playloader = " rtpmp4apay ";
+    }
+    printf("got the audio caps %s\n", str_caps);
   }
 }
 enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_ctx, char *streamId, char *pipeline_type, char *pipeline)
 {
   // TODO: generate pipeline based on the codec
-  char *common_pipeline = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"%s\" name=video "
-  "appsrc name=audio_%s is-live=true do-timestamp=true  !  queue ! capsfilter caps=\"%s\"   name=audio  ",streamId, stream_ctx->video_caps,streamId,stream_ctx->audio_caps);
-  
-  // parsed_data *data = malloc(sizeof(parsed_data));
-  // parse_codec(stream_ctx, &data);
 
+  parse_codec(stream_ctx);
+  char *common_pipeline = " ", *common_video, *common_audio;
+  if (stream_ctx->video_caps == NULL && stream_ctx->audio_caps )
+  {
+    *pipeline_out = strdup("video and audio caps are null");
+    return PIPELINE_TYPE_ERROR;
+  }
+
+  if (stream_ctx->video_caps != NULL)
+  {
+    common_video = g_strdup_printf("appsrc name=video_%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"%s\" name=video ", streamId, stream_ctx->video_caps);
+    common_pipeline = strcat_dyn(common_pipeline, common_video);
+    free(common_video);
+
+  }
+  if (stream_ctx->audio_caps != NULL) 
+  {
+    common_audio = g_strdup_printf("appsrc name=audio_%s is-live=true do-timestamp=true  !  queue ! capsfilter caps=\"%s\"   name=audio  ", streamId, stream_ctx->audio_caps);
+    common_pipeline = strcat_dyn(common_pipeline, common_audio);
+    free(common_audio);
+  }
   if (g_strcmp0(pipeline_type, PIPE_GSTREAMER) == 0)
   {
     *pipeline_out = strcat_dyn(common_pipeline, pipeline);
     free(common_pipeline);
-    printf("pipeline generated : %s\n", *pipeline_out);
+    printf("pipeline generated :\n%s\n", *pipeline_out);
     return PIPELINE_TYPE_GSTREAMER;
   }
   else if (g_strcmp0(pipeline_type, PIPE_RTSP) == 0)
   {
-    printf("allocating rtsp pipeline\n");
-    *pipeline_out = strcat_dyn(common_pipeline, " video. !  rtph264pay pt=96 name=pay0 audio. ! rtpmp4apay pt=97 name=pay1  ");
+    //memory leak 2 different allocation for audio and video
+    if (stream_ctx->video_caps != NULL)
+    {
+      *pipeline_out = g_strdup_printf("%s video. ! %s pt=96 name=pay0 ",common_pipeline, stream_ctx->video_playloader);
+    }if (stream_ctx->audio_caps != NULL){
+      *pipeline_out = g_strdup_printf("%s audio. ! %s pt=97 name=pay1 ",*pipeline_out,stream_ctx->audio_playloader);
+    }
     free(common_pipeline);
-    printf("pipeline generated : %s\n", *pipeline_out);
     return PIPELINE_TYPE_RTSP;
   }
   else if (g_strcmp0(pipeline_type, PIPE_RTMP) == 0)
@@ -252,7 +294,6 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
     char *rtmp_pipline = g_strdup_printf(" flvmux ! rtmpsink location=\"rtmp://127.0.0.1/rtmpout?streamid=rtmpout/%s_rtmp_out\"", streamId);
     *pipeline_out = strcat_dyn(common_pipeline, rtmp_pipline);
     free(rtmp_pipline);
-    printf("pipeline generated : %s\n", *pipeline_out);
     return PIPELINE_TYPE_GSTREAMER;
   }
   else if (g_strcmp0(pipeline_type, RTP_OUT) == 0)
@@ -265,6 +306,10 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   }
   else if (g_strcmp0(pipeline_type, PIPE_FFMPEG) == 0)
   {
+
+    // invalid option
+    printf("handler on streamId (%s) for pipeline (%s) is not defined\n", streamId, pipeline_type);
+    return PIPELINE_TYPE_ERROR;
   }
   else
   {
@@ -280,9 +325,9 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   // printf("printing dynamically generated pipeline\n");
   // printf("%s\n", pipe);
 }
+
 char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline) // Pipeline par is only for user's Custom pipeline otherwise we genrate our
 {
-
   // register appropriate pipline
   streamId = strdup(streamId);
   pipeline_type = strdup(pipeline_type);
@@ -307,9 +352,20 @@ char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline) 
       char *err = add_rtsp_pipeline(streamId, pipeline_out);
       return err;
     }
-    case PIPELINE_TYPE_FFMPEG:
-    // fallthrough
     case PIPELINE_TYPE_ERROR:
+    {
+      char *err = pipeline_out;
+      if (err == NULL)
+      {
+        return strdup("error can't generate pipeline\n");
+      }
+      else
+      {
+        return pipeline_out;
+      }
+      break;
+    }
+    case PIPELINE_TYPE_FFMPEG:
     // fallthrough
     default:
     {
@@ -347,7 +403,21 @@ void init_Codec(StreamMap *stream)
   // av_bsf_init(bsfContext);
   // videoTimebase = bsfContext.time_base_out();
   printf("Initializing Filters \n");
-  annexbfilter = av_bsf_get_by_name("h264_mp4toannexb");
+  
+  switch (stream->videopar->codec_id)
+  {
+  case AV_CODEC_ID_H264:
+    annexbfilter = av_bsf_get_by_name("h264_mp4toannexb");
+    break;
+
+  case AV_CODEC_ID_H265:
+    annexbfilter = av_bsf_get_by_name("hevc_mp4toannexb");
+    break;
+
+  default:
+    annexbfilter = av_bsf_get_by_name("null");
+    break;
+  }
 
   if (annexbfilter == NULL)
   {
@@ -528,49 +598,13 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
     if (stream_type == PACKET_TYPE_VIDEO)
     {
       printf("setting Stream info VIDEO %s Codecid %d \n", streamId, codecPar->codec_id);
-
       ctx->videopar = codecPar;
       ctx->rational = rational;
-      AVCodec *decoder;
-      AVCodecContext *codec_context;
-      decoder =
-          (AVCodec *)avcodec_find_decoder(ctx->videopar->codec_id);
-      codec_context = avcodec_alloc_context3(decoder);
-      avcodec_parameters_to_context(codec_context, codecPar);
-      char *str_caps;
-      gst_ffmpeg_codecid_to_caps(ctx->videopar->codec_id, codec_context, 1, &str_caps);
-      ctx->video_caps = str_caps;
-      printf("got the video caps %s\n", str_caps);
       init_Codec(ctx);
-      //char *pipeline_out;
-      //enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, ctx, streamId, PIPE_RTSP, " ");
-      //printf("pipeline successfully generated : %s\n", pipeline_out);
-      //add_rtsp_pipeline(strdup(streamId), pipeline_out);
-      //printf("registered  Stream %s\n", streamId);
     }
     else if (stream_type == PACKET_TYPE_AUDIO)
     {
-       ctx->audiopar = codecPar;
-       AVCodec *decoder;
-       AVCodecContext *codec_context;
-       decoder =
-           (AVCodec *)avcodec_find_decoder(ctx->audiopar->codec_id);
-       codec_context = avcodec_alloc_context3(decoder);
-       avcodec_parameters_to_context(codec_context, codecPar);
-       char *str_caps;
-       gst_ffmpeg_codecid_to_caps(ctx->audiopar->codec_id, codec_context, 1,&str_caps);
-       printf(str_caps);
-       ctx->audio_caps = str_caps;
-       printf(ctx->audio_caps);
-       //printf("%p\n", caps);
-       //if (gst_caps_is_empty(caps))
-       //{
-       // printf("caps is empty\n");
-       //}
-       //printf("didn't crash\n");
-       //char* strcaps = gst_caps_to_string(NULL);
-       //printf("didn't crash\n");
-       //printf("%s\n",strcaps );
+      ctx->audiopar = codecPar;
     }
     else
     {
@@ -585,8 +619,6 @@ void register_stream(char *streamId)
   StreamMap *ctx = g_new0(StreamMap, 1);
   ctx->pipeline_initialized = 0;
   g_hash_table_insert(hash_table, strdup(streamId), ctx);
-
-
 }
 void unregister_stream(char *streamId) // TODO : Free allocated resources
 {
