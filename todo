@@ -8,22 +8,3 @@ annexedb filter Done
 crashing
 rtmp output Done
 why rtsp and gstreamer are working in parrrrllllel
-
-AMS---------->sinksink---------> ant media 
-
-rtmpclient vlc 
-    
-
-http ---------http
-
-
-pipeline = "teee sdlajdlk"
-
-GstElement* pipe = gst_parse_launch(pipeline)
-
-free(pipeline)
-
-
-appsrc ! tee ! queue ! pipeline
-
-tee  ! pipeline

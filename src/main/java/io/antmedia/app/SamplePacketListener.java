@@ -61,11 +61,10 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 
 	@Override
 	public void setAudioStreamInfo(String streamId, StreamParametersInfo audioStreamInfo) {
-		long codecPar = audioStreamInfo.getCodecParameters().address();
+		long codecPar = audioStreamInfo.getCodecParameters().address(); 
 		long getTimeBase = audioStreamInfo.getTimeBase().address();
 		int streamType =1;
-		NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , codecPar, getTimeBase,streamType);
-
+		//NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , codecPar, getTimeBase,streamType);
 		System.out.println("SamplePacketListener.setAudioStreamInfo()");
 	}
 

@@ -38,9 +38,8 @@ gst_ffmpeg_codecid_is_image (enum AVCodecID codec_id);
  */
 
 GstCaps *
-gst_ffmpeg_codecid_to_caps   (enum AVCodecID    codec_id,
-                              AVCodecContext *context,
-                              gboolean        encode, gchar  **caps_str);
+gst_ffmpeg_codecid_to_caps (enum AVCodecID codec_id,
+    AVCodecContext * context, gboolean encode,char **caps_str);
 
 /*
  * _codectype_to_caps () gets the GstCaps that belongs to

@@ -19,7 +19,6 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#define printfln(...) {printf(__VA_ARGS__); printf("\n");}
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -45,6 +44,15 @@ static const struct
 } _ff_to_gst_layout[] = {
     {AV_CH_FRONT_LEFT, GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT}, {AV_CH_FRONT_RIGHT, GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT}, {AV_CH_FRONT_CENTER, GST_AUDIO_CHANNEL_POSITION_FRONT_CENTER}, {AV_CH_LOW_FREQUENCY, GST_AUDIO_CHANNEL_POSITION_LFE1}, {AV_CH_BACK_LEFT, GST_AUDIO_CHANNEL_POSITION_REAR_LEFT}, {AV_CH_BACK_RIGHT, GST_AUDIO_CHANNEL_POSITION_REAR_RIGHT}, {AV_CH_FRONT_LEFT_OF_CENTER, GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT_OF_CENTER}, {AV_CH_FRONT_RIGHT_OF_CENTER, GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT_OF_CENTER}, {AV_CH_BACK_CENTER, GST_AUDIO_CHANNEL_POSITION_REAR_CENTER}, {AV_CH_SIDE_LEFT, GST_AUDIO_CHANNEL_POSITION_SIDE_LEFT}, {AV_CH_SIDE_RIGHT, GST_AUDIO_CHANNEL_POSITION_SIDE_RIGHT}, {AV_CH_TOP_CENTER, GST_AUDIO_CHANNEL_POSITION_TOP_CENTER}, {AV_CH_TOP_FRONT_LEFT, GST_AUDIO_CHANNEL_POSITION_TOP_FRONT_LEFT}, {AV_CH_TOP_FRONT_CENTER, GST_AUDIO_CHANNEL_POSITION_TOP_FRONT_CENTER}, {AV_CH_TOP_FRONT_RIGHT, GST_AUDIO_CHANNEL_POSITION_TOP_FRONT_RIGHT}, {AV_CH_TOP_BACK_LEFT, GST_AUDIO_CHANNEL_POSITION_TOP_REAR_LEFT}, {AV_CH_TOP_BACK_CENTER, GST_AUDIO_CHANNEL_POSITION_TOP_REAR_CENTER}, {AV_CH_TOP_BACK_RIGHT, GST_AUDIO_CHANNEL_POSITION_TOP_REAR_RIGHT}, {AV_CH_STEREO_LEFT, GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT}, {AV_CH_STEREO_RIGHT, GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT}};
 
+gboolean removecaps(GstCapsFeatures *features,
+                    GstStructure *structure,
+                    gpointer user_data)
+{
+  printf("lesssss gooo going into remove caps");
+  gst_structure_remove_field(structure, "framerate");
+  printf("----------cps --%s------------\n", gst_structure_to_string(structure));
+  return 1;
+}
 static guint64
 gst_ffmpeg_channel_positions_to_layout(GstAudioChannelPosition *pos,
                                        gint channels)
@@ -134,7 +142,7 @@ gst_ffmpeg_channel_layout_to_gst(guint64 channel_layout, gint channels,
 
       if (j != nchannels)
       {
-        printfln("Unknown channels in channel layout - assuming NONE layout");
+        GST_WARNING("Unknown channels in channel layout - assuming NONE layout");
         none_layout = TRUE;
       }
     }
@@ -260,11 +268,12 @@ gst_ff_vid_caps_new(AVCodecContext *context, AVCodec *codec,
                     enum AVCodecID codec_id, gboolean encode, const char *mimetype,
                     const char *fieldname, ...)
 {
-  printfln("asdfasdfalsf;alsjfa");
   GstCaps *caps = NULL;
   va_list var_args;
   gint i;
-  printfln("context:%d, codec_id:%d, mimetype:%s", context, codec_id, mimetype);
+
+  g_printf("context:%p, codec_id:%d, mimetype:%s", context, codec_id, mimetype);
+  g_printf("\n");
 
   /* fixed, non probing context */
   if (context != NULL && context->width != -1)
@@ -280,21 +289,20 @@ gst_ff_vid_caps_new(AVCodecContext *context, AVCodec *codec,
 
     if (!denom)
     {
-      printfln("invalid framerate: %d/0, -> %d/1", num, num);
+      g_printf("invalid framerate: %d/0, -> %d/1", num, num);
+      g_printf("\n");
       denom = 1;
     }
     if (gst_util_fraction_compare(num, denom, 1000, 1) > 0)
     {
-      printfln("excessive framerate: %d/%d, -> 0/1", num, denom);
+      g_printf("excessive framerate: %d/%d, -> 0/1", num, denom);
+      g_printf("\n");
       num = 0;
       denom = 1;
     }
-      num = 1;
-      denom = 1;
-    printfln("setting framerate: %d/%d", num, denom);
-
-  //  gst_caps_set_simple(caps,
-       //                "framerate", GST_TYPE_FRACTION, num, denom, NULL);
+    g_printf("setting framerate: %d/%d", num, denom);
+    gst_caps_set_simple(caps,
+                        "framerate", GST_TYPE_FRACTION, num, denom, NULL);
   }
   else if (encode)
   {
@@ -461,13 +469,14 @@ gst_ff_vid_caps_new(AVCodecContext *context, AVCodec *codec,
    * default unfixed setting */
   if (!caps)
   {
-    printfln("Creating default caps");
+    GST_DEBUG("Creating default caps");
     caps = gst_caps_new_empty_simple(mimetype);
   }
 
   va_start(var_args, fieldname);
   gst_caps_set_simple_valist(caps, fieldname, var_args);
   va_end(var_args);
+
   return caps;
 }
 
@@ -875,12 +884,12 @@ gst_ffmpeg_codecid_is_image(enum AVCodecID codec_id)
 
 GstCaps *
 gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
-                           AVCodecContext *context, gboolean encode, char **caps_str)
+                           AVCodecContext *context, gboolean encode, gchar **caps_str)
 {
   GstCaps *caps = NULL;
   gboolean buildcaps = FALSE;
-
-  printfln("codec_id:%d, context:%p, encode:%d", codec_id, context, encode);
+  g_printf("codec_id:%d, context:%p, encode:%d", codec_id, context, encode);
+  g_printf("\n");
 
   switch (codec_id)
   {
@@ -1292,8 +1301,8 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
         format = "YUV9";
         break;
       default:
-        printfln("Couldnt' find format for pixfmt %d, defaulting to I420",
-               context->pix_fmt);
+        GST_WARNING("Couldnt' find format for pixfmt %d, defaulting to I420",
+                    context->pix_fmt);
         format = "I420";
         break;
       }
@@ -1400,39 +1409,30 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
     break;
 
   case AV_CODEC_ID_H264:
-    printfln("h264 0------ ---------------");
     caps =
         gst_ff_vid_caps_new(context, NULL, codec_id, encode, "video/x-h264",
                             "alignment", G_TYPE_STRING, "au", NULL);
     if (!encode)
     {
-      GValue arr = { 0, };
-      GValue item = { 0, };
-      printfln("h264 2------ ---------------");
-
+      GValue arr = {
+          0,
+      };
+      GValue item = {
+          0,
+      };
       g_value_init(&arr, GST_TYPE_LIST);
       g_value_init(&item, G_TYPE_STRING);
-     // g_value_set_string(&item, "avc");
+      g_value_set_string(&item, "avc");
       gst_value_list_append_value(&arr, &item);
       g_value_set_string(&item, "byte-stream");
-      printfln("h264 3------ ---------------");
-
       gst_value_list_append_value(&arr, &item);
-      printfln("h264 4------ ---------------");
       g_value_unset(&item);
-      printfln("h264 5------ ---------------");
-
       gst_caps_set_value(caps, "stream-format", &arr);
       g_value_unset(&arr);
-      printfln("h264 6------ ---------------");
-      printfln("what alksjdlkjasldkj");
-      void *caeps = gst_ff_vid_caps_new(context, NULL, codec_id,
-                                                encode, "video/x-h264", "alignment", G_TYPE_STRING, "nal",
-                                                "stream-format", G_TYPE_STRING, "byte-stream", NULL);
-      printfln("h264 7------ ---------------");
-      gst_caps_append(caps, caeps);
-      printfln("h264 8------ ---------------");
 
+      gst_caps_append(caps, gst_ff_vid_caps_new(context, NULL, codec_id,
+                                                encode, "video/x-h264", "alignment", G_TYPE_STRING, "nal",
+                                                "stream-format", G_TYPE_STRING, "byte-stream", NULL));
     }
     else if (context)
     {
@@ -1441,18 +1441,13 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
        * ffmpeg does not distinguish the different types of AVC. */
       if (context->extradata_size > 0)
       {
-      //  gst_caps_set_simple(caps, "stream-format", G_TYPE_STRING, "avc",
-                //            NULL);
-                      
-        gst_caps_set_simple(caps, "stream-format", G_TYPE_STRING,
-                            "byte-stream", NULL);
+        gst_caps_set_simple(caps, "stream-format", G_TYPE_STRING, "avc",
+                            NULL);
       }
       else
       {
         gst_caps_set_simple(caps, "stream-format", G_TYPE_STRING,
                             "byte-stream", NULL);
-                                
-
       }
     }
     break;
@@ -1609,9 +1604,11 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
 
   case AV_CODEC_ID_AAC:
   {
+    printf("aac found\n");
     caps =
         gst_ff_aud_caps_new(context, NULL, codec_id, encode, "audio/mpeg",
                             NULL);
+    printf("caps asjdklald : %s\n", gst_caps_to_string(caps));
 
     if (!encode)
     {
@@ -1645,6 +1642,8 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
 
       gst_caps_set_value(caps, "stream-format", &arr);
       g_value_unset(&arr);
+      printf("not encoding shit\n");
+      printf("%s\n", gst_caps_to_string(caps));
     }
     else
     {
@@ -1657,16 +1656,17 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
       {
         gst_caps_set_simple(caps, "stream-format", G_TYPE_STRING, "raw",
                             NULL);
-        gst_codec_utils_aac_caps_set_level_and_profile(caps,
-                                                       context->extradata, context->extradata_size);
+        // gst_codec_utils_aac_caps_set_level_and_profile (caps,
+        //   context->extradata, context->extradata_size);
       }
       else if (context)
       {
         gst_caps_set_simple(caps, "stream-format", G_TYPE_STRING, "adts",
                             NULL);
       }
+      printf("encoding shit\n");
+      printf("%s\n", gst_caps_to_string(caps));
     }
-
     break;
   }
   case AV_CODEC_ID_AAC_LATM: /* LATM/LOAS AAC syntax */
@@ -2552,20 +2552,21 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
                             NULL);
     break;
   default:
-    printfln("Unknown codec ID %d, please add mapping here", codec_id);
+    GST_DEBUG("Unknown codec ID %d, please add mapping here", codec_id);
     break;
   }
 
   if (buildcaps)
   {
-    AVCodec *codec;
-
+    printf("entering build caps\n");
+    const AVCodec *codec;
     if ((codec = avcodec_find_decoder(codec_id)) ||
         (codec = avcodec_find_encoder(codec_id)))
     {
       gchar *mime = NULL;
 
-      printfln("Could not create stream format caps for %s", codec->name);
+      g_printf("Could not create stream format caps for %s", codec->name);
+      g_printf("\n");
 
       switch (codec->type)
       {
@@ -2595,39 +2596,38 @@ gst_ffmpeg_codecid_to_caps(enum AVCodecID codec_id,
   {
 
     /* set private data */
-    if (0)
+    if (context && context->extradata_size > 0)
     {
       GstBuffer *data = gst_buffer_new_and_alloc(context->extradata_size);
-      if(data != NULL && context->extradata !=NULL){
-      //crashing here for some reason
-      printfln("going to crash %d %d" ,context->extradata_size ,context->extradata);
-      gst_buffer_fill(data, 0, context->extradata, context->extradata_size);
-        printfln("not crashed");
 
+      gst_buffer_fill(data, 0, context->extradata, context->extradata_size);
       gst_caps_set_simple(caps, "codec_data", GST_TYPE_BUFFER, data, NULL);
       gst_buffer_unref(data);
-      }
     }
 
-    printfln("caps for codec_id=%d: %" GST_PTR_FORMAT, codec_id, caps);
+    g_printf("caps for codec_id=%d: %" GST_PTR_FORMAT, codec_id, caps);
+    g_printf("\n");
   }
   else
   {
-    printfln("No caps found for codec_id=%d", codec_id);
+    g_printf("No caps found for codec_id=%d", codec_id);
+    g_printf("\n");
   }
+  printf("before returning\n");
 
-  printfln("before returning\n");
+  // gst_caps_filter_and_map_in_place(caps,removecaps,NULL);
+
   if (caps_str != NULL)
   {
     *caps_str = gst_caps_to_string(caps);
-    printfln("%s\n", *caps_str);
+    printf("%s\n", *caps_str);
   }
   return caps;
 }
 
 /* Convert a FFMPEG Pixel Format and optional AVCodecContext
  * to a GstCaps. If the context is ommitted, no fixed values
- * for video/audio size will be included in the GstCaps
+ * for video/audio size will be included in the GstCapsls
  *
  * See below for usefullness
  */
@@ -2649,11 +2649,12 @@ gst_ffmpeg_pixfmt_to_caps(enum AVPixelFormat pix_fmt, AVCodecContext *context,
 
   if (caps != NULL)
   {
-    printfln("caps for pix_fmt=%d: %" GST_PTR_FORMAT, pix_fmt, caps);
+    GST_DEBUG("caps for pix_fmt=%d: %" GST_PTR_FORMAT, pix_fmt, caps);
   }
   else
   {
-    printfln("No caps found for pix_fmt=%d", pix_fmt);
+    g_printf("No caps found for pix_fmt=%d", pix_fmt);
+    g_printf("\n");
   }
 
   return caps;
@@ -2732,11 +2733,13 @@ gst_ffmpeg_smpfmt_to_caps(enum AVSampleFormat sample_fmt,
                                "format", G_TYPE_STRING, gst_audio_format_to_string(format),
                                "layout", G_TYPE_STRING,
                                (layout == GST_AUDIO_LAYOUT_INTERLEAVED) ? "interleaved" : "non-interleaved", NULL);
-    printfln("caps for sample_fmt=%d: %" GST_PTR_FORMAT, sample_fmt, caps);
+    g_printf("caps for sample_fmt=%d: %" GST_PTR_FORMAT, sample_fmt, caps);
+    g_printf("\n");
   }
   else
   {
-    printfln("No caps found for sample_fmt=%d", sample_fmt);
+    g_printf("No caps found for sample_fmt=%d", sample_fmt);
+    g_printf("\n");
   }
 
   return caps;
@@ -2765,11 +2768,11 @@ gst_ffmpeg_codectype_to_audio_caps(AVCodecContext *context,
 {
   GstCaps *caps = NULL;
 
-  printfln("context:%p, codec_id:%d, encode:%d, codec:%p",
-         context, codec_id, encode, codec);
+  GST_DEBUG("context:%p, codec_id:%d, encode:%d, codec:%p",
+            context, codec_id, encode, codec);
   if (codec)
-    printfln("sample_fmts:%p, samplerates:%p",
-           codec->sample_fmts, codec->supported_samplerates);
+    GST_DEBUG("sample_fmts:%p, samplerates:%p",
+              codec->sample_fmts, codec->supported_samplerates);
 
   if (context)
   {
@@ -2796,7 +2799,9 @@ gst_ffmpeg_codectype_to_video_caps(AVCodecContext *context,
 {
   GstCaps *caps;
 
-  printfln("context:%p, codec_id:%d, encode:%d, codec:%p",context, codec_id, encode, codec);
+  g_printf("context:%p, codec_id:%d, encode:%d, codec:%p",
+           context, codec_id, encode, codec);
+  g_printf("\n");
 
   if (context)
   {
@@ -2894,7 +2899,7 @@ gst_ffmpeg_caps_to_pixfmt(const GstCaps *caps,
   GstVideoFormat format = GST_VIDEO_FORMAT_UNKNOWN;
   const gchar *s;
 
-  printfln("converting caps %" GST_PTR_FORMAT, caps);
+  GST_DEBUG("converting caps %" GST_PTR_FORMAT, caps);
   g_return_if_fail(gst_caps_get_size(caps) == 1);
   structure = gst_caps_get_structure(caps, 0);
 
@@ -2917,9 +2922,9 @@ gst_ffmpeg_caps_to_pixfmt(const GstCaps *caps,
       context->time_base.num = gst_value_get_fraction_denominator(fps);
       context->ticks_per_frame = 1;
 
-      printfln("setting framerate %d/%d = %lf",
-             context->time_base.den, context->time_base.num,
-             1. * context->time_base.den / context->time_base.num);
+      GST_DEBUG("setting framerate %d/%d = %lf",
+                context->time_base.den, context->time_base.num,
+                1. * context->time_base.den / context->time_base.num);
     }
     else
     {
@@ -2940,15 +2945,15 @@ gst_ffmpeg_caps_to_pixfmt(const GstCaps *caps,
       context->sample_aspect_ratio.num = num;
       context->sample_aspect_ratio.den = den;
 
-      printfln("setting pixel-aspect-ratio %d/%d = %lf",
-             context->sample_aspect_ratio.num, context->sample_aspect_ratio.den,
-             1. * context->sample_aspect_ratio.num /
-                 context->sample_aspect_ratio.den);
+      GST_DEBUG("setting pixel-aspect-ratio %d/%d = %lf",
+                context->sample_aspect_ratio.num, context->sample_aspect_ratio.den,
+                1. * context->sample_aspect_ratio.num /
+                    context->sample_aspect_ratio.den);
     }
     else
     {
-      printfln("ignoring insane pixel-aspect-ratio %d/%d",
-             context->sample_aspect_ratio.num, context->sample_aspect_ratio.den);
+      GST_WARNING("ignoring insane pixel-aspect-ratio %d/%d",
+                  context->sample_aspect_ratio.num, context->sample_aspect_ratio.den);
     }
   }
 
@@ -3165,7 +3170,7 @@ gst_ffmpeg_pixfmt_to_videoformat(enum AVPixelFormat pixfmt)
     if (pixtofmttable[i].pixfmt == pixfmt)
       return pixtofmttable[i].format;
 
-  printfln("Unknown pixel format %d", pixfmt);
+  GST_DEBUG("Unknown pixel format %d", pixfmt);
   return GST_VIDEO_FORMAT_UNKNOWN;
 }
 
@@ -3218,7 +3223,7 @@ void gst_ffmpeg_videoinfo_to_context(GstVideoInfo *info, AVCodecContext *context
   context->ticks_per_frame = 1;
   if (GST_VIDEO_INFO_FPS_N(info) == 0)
   {
-    printfln("Using 25/1 framerate");
+    GST_DEBUG("Using 25/1 framerate");
     context->time_base.den = 25;
     context->time_base.num = 1;
   }
@@ -3267,6 +3272,7 @@ void gst_ffmpeg_videoinfo_to_context(GstVideoInfo *info, AVCodecContext *context
   else
   {
     context->color_range = AVCOL_RANGE_MPEG;
+    context->strict_std_compliance = FF_COMPLIANCE_UNOFFICIAL;
   }
 }
 
@@ -3451,7 +3457,7 @@ nal_escape (guint8 * dst, guint8 * src, guint size, guint * destsize)
 
   while (srcp < end) {
     if (count == 2 && *srcp <= 0x03) {
-      printfln ("added escape code");
+      GST_DEBUG ("added escape code");
       *dstp++ = 0x03;
       count = 0;
     }
@@ -3460,7 +3466,7 @@ nal_escape (guint8 * dst, guint8 * src, guint size, guint * destsize)
     else
       count = 0;
 
-    printfln ("copy %02x, count %d", *srcp, count);
+    GST_DEBUG ("copy %02x, count %d", *srcp, count);
     *dstp++ = *srcp++;
   }
   *destsize = dstp - dst;
@@ -3486,14 +3492,14 @@ copy_config (guint8 * dst, guint8 * src, guint size, guint * destsize)
 
   cnt = *(srcp + 5) & 0x1f;     /* Number of sps */
 
-  printfln ("num SPS %d", cnt);
+  GST_DEBUG ("num SPS %d", cnt);
 
   memcpy (dstp, srcp, 6);
   srcp += 6;
   dstp += 6;
 
   for (i = 0; i < cnt; i++) {
-    printfln ("copy SPS %d", i);
+    GST_DEBUG ("copy SPS %d", i);
     nalsize = (srcp[0] << 8) | srcp[1];
     nal_escape (dstp + 2, srcp + 2, nalsize, &esize);
     dstp[0] = esize >> 8;
@@ -3504,10 +3510,10 @@ copy_config (guint8 * dst, guint8 * src, guint size, guint * destsize)
 
   cnt = *(dstp++) = *(srcp++);  /* Number of pps */
 
-  printfln ("num PPS %d", cnt);
+  GST_DEBUG ("num PPS %d", cnt);
 
   for (i = 0; i < cnt; i++) {
-    printfln ("copy PPS %d", i);
+    GST_DEBUG ("copy PPS %d", i);
     nalsize = (srcp[0] << 8) | srcp[1];
     nal_escape (dstp + 2, srcp + 2, nalsize, &esize);
     dstp[0] = esize >> 8;
@@ -3521,7 +3527,7 @@ copy_config (guint8 * dst, guint8 * src, guint size, guint * destsize)
 
 full_copy:
   {
-    printfln ("something unexpected, doing full copy");
+    GST_DEBUG ("something unexpected, doing full copy");
     memcpy (dst, src, size);
     *destsize = size;
     return;
@@ -3542,8 +3548,9 @@ void gst_ffmpeg_caps_with_codecid(enum AVCodecID codec_id,
   const GValue *value;
   GstBuffer *buf;
 
-  printfln("codec_id:%d, codec_type:%d, caps:%" GST_PTR_FORMAT " context:%p",
-         codec_id, codec_type, caps, context);
+  g_printf("codec_id:%d, codec_type:%d, caps:%" GST_PTR_FORMAT " context:%p",
+           codec_id, codec_type, caps, context);
+  g_printf("\n");
 
   if (!context || !gst_caps_get_size(caps))
     return;
@@ -3566,7 +3573,7 @@ void gst_ffmpeg_caps_with_codecid(enum AVCodecID codec_id,
     if (codec_id == AV_CODEC_ID_H264) {
       guint extrasize;
 
-      printfln ("copy, escaping codec_data %d", size);
+      GST_DEBUG ("copy, escaping codec_data %d", size);
       /* ffmpeg h264 expects the codec_data to be escaped, there is no real
        * reason for this but let's just escape it for now. Start by allocating
        * enough space, x2 is more than enough.
@@ -3578,13 +3585,13 @@ void gst_ffmpeg_caps_with_codecid(enum AVCodecID codec_id,
           av_mallocz (GST_ROUND_UP_16 (size * 2 +
               AV_INPUT_BUFFER_PADDING_SIZE));
       copy_config (context->extradata, data, size, &extrasize);
-      printfln ("escaped size: %d", extrasize);
+      GST_DEBUG ("escaped size: %d", extrasize);
       context->extradata_size = extrasize;
     } else
 #endif
     {
       /* allocate with enough padding */
-      printfln("copy codec_data");
+      GST_DEBUG("copy codec_data");
       context->extradata =
           av_mallocz(GST_ROUND_UP_16(map.size +
                                      AV_INPUT_BUFFER_PADDING_SIZE));
@@ -3598,7 +3605,7 @@ void gst_ffmpeg_caps_with_codecid(enum AVCodecID codec_id,
       context->extradata[0] = (guint8)map.size;
     }
 
-    printfln("have codec data of size %" G_GSIZE_FORMAT, map.size);
+    GST_DEBUG("have codec data of size %" G_GSIZE_FORMAT, map.size);
 
     gst_buffer_unmap(buf, &map);
   }
@@ -3606,7 +3613,7 @@ void gst_ffmpeg_caps_with_codecid(enum AVCodecID codec_id,
   {
     context->extradata = NULL;
     context->extradata_size = 0;
-    printfln("no codec data");
+    GST_DEBUG("no codec data");
   }
 
   switch (codec_id)
@@ -3684,7 +3691,7 @@ void gst_ffmpeg_caps_with_codecid(enum AVCodecID codec_id,
     }
     else
     {
-      printfln("No depth field in caps %" GST_PTR_FORMAT, caps);
+      GST_WARNING("No depth field in caps %" GST_PTR_FORMAT, caps);
     }
   }
   break;
@@ -3729,13 +3736,13 @@ void gst_ffmpeg_caps_with_codecid(enum AVCodecID codec_id,
         context->pix_fmt = AV_PIX_FMT_YUV410P;
       else
       {
-        printfln("couldn't convert format %s"
-               " to a pixel format",
-               format);
+        GST_WARNING("couldn't convert format %s"
+                    " to a pixel format",
+                    format);
       }
     }
     else
-      printfln("No specified format");
+      GST_WARNING("No specified format");
     break;
   }
   case AV_CODEC_ID_H263P:
@@ -4012,7 +4019,8 @@ gst_ffmpeg_formatid_to_caps(const gchar *format_name)
   {
     gchar *name;
 
-    printfln("Could not create stream format caps for %s", format_name);
+    g_printf("Could not create stream format caps for %s", format_name);
+    g_printf("\n");
     name = g_strdup_printf("application/x-gst-av-%s", format_name);
     caps = gst_caps_new_empty_simple(name);
     g_free(name);
@@ -4033,7 +4041,8 @@ gst_ffmpeg_formatid_get_codecids(const gchar *format_name,
       AV_CODEC_ID_NONE,
       AV_CODEC_ID_NONE};
 
-  printfln("format_name : %s", format_name);
+  g_printf("format_name : %s", format_name);
+  g_printf("\n");
 
   if (!strcmp(format_name, "mp4"))
   {
@@ -4222,7 +4231,8 @@ gst_ffmpeg_formatid_get_codecids(const gchar *format_name,
   }
   else
   {
-    printfln("Format %s not found", format_name);
+    g_printf("Format %s not found", format_name);
+    g_printf("\n");
     return FALSE;
   }
 
@@ -5002,7 +5012,7 @@ gst_ffmpeg_caps_to_codecid(const GstCaps *caps, AVCodecContext *context)
   else if (!strncmp(mimetype, "audio/x-gst-av-", 15))
   {
     gchar ext[16];
-    AVCodec *codec;
+    const AVCodec *codec;
 
     if (strlen(mimetype) <= 30 &&
         sscanf(mimetype, "audio/x-gst-av-%s", ext) == 1)
@@ -5018,7 +5028,7 @@ gst_ffmpeg_caps_to_codecid(const GstCaps *caps, AVCodecContext *context)
   else if (!strncmp(mimetype, "video/x-gst-av-", 15))
   {
     gchar ext[16];
-    AVCodec *codec;
+    const AVCodec *codec;
 
     if (strlen(mimetype) <= 30 &&
         sscanf(mimetype, "video/x-gst-av-%s", ext) == 1)
@@ -5052,11 +5062,11 @@ gst_ffmpeg_caps_to_codecid(const GstCaps *caps, AVCodecContext *context)
 
   if (id != AV_CODEC_ID_NONE)
   {
-    printfln("The id=%d belongs to the caps %" GST_PTR_FORMAT, id, caps);
+    GST_DEBUG("The id=%d belongs to the caps %" GST_PTR_FORMAT, id, caps);
   }
   else
   {
-    printfln("Couldn't figure out the id for caps %" GST_PTR_FORMAT, caps);
+    GST_WARNING("Couldn't figure out the id for caps %" GST_PTR_FORMAT, caps);
   }
 
   return id;
