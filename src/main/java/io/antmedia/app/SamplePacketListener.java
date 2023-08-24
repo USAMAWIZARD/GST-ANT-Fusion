@@ -36,6 +36,8 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 
 	@Override
 	public AVPacket onVideoPacket(String streamId, AVPacket packet) {
+	//	System.out.println("sending video packet to c pipeline\n");
+
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(), streamId,0);
 		return packet;
 	}
@@ -64,7 +66,7 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 		long codecPar = audioStreamInfo.getCodecParameters().address(); 
 		long getTimeBase = audioStreamInfo.getTimeBase().address();
 		int streamType =1;
-		//NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , codecPar, getTimeBase,streamType);
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , codecPar, getTimeBase,streamType);
 		System.out.println("SamplePacketListener.setAudioStreamInfo()");
 	}
 
