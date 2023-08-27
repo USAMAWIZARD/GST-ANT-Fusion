@@ -36,15 +36,20 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 
 	@Override
 	public AVPacket onVideoPacket(String streamId, AVPacket packet) {
-	//	System.out.println("sending video packet to c pipeline\n");
-
+		if(streamId.equals("aaaa"))
+		{
+		System.out.println("sending rtsp video packet to c pipeline\n");
+		}
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(), streamId,0);
 		return packet;
 	}
 
 	@Override
 	public AVPacket onAudioPacket(String streamId, AVPacket packet) {
-		//System.out.println("sending audio packet to c pipeline\n");
+		if(streamId.equals("aaaa"))
+		{
+		System.out.println("sending rtsp audio packet to c pipeline\n");
+		}
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(), streamId,1);
 		return packet;
 	}

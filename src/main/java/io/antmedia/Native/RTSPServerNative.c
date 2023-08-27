@@ -54,6 +54,7 @@ typedef struct
   char *video_parser;
   char *audio_parser;
   char *rtsp_mountpoint;
+  char *demuxer;
   AVRational *rational;
   GstElement *pipeline;
   volatile gboolean pipeline_initialized;
@@ -411,7 +412,7 @@ char *register_pipeline(gchar *streamId, gchar *pipeline_type, gchar *pipeline) 
 
 AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(StreamMap *stream, int codecId)
 {
-  printf("setting audio thing\n");
+  printf("setting payloder and parser for codec ID %d\n",codecId);
   const AVBitStreamFilter *video_stream_filter = NULL;
   switch (codecId)
   {
@@ -421,27 +422,36 @@ AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(Strea
     printf("h264 initilaized \n");
     stream->video_payloader = " rtph264pay  ";
     stream->video_parser = " h264parse  ";
-
     break;
 
   case AV_CODEC_ID_VP8: // vp8
     stream->video_payloader = " rtpvp8pay  ";
     stream->video_parser = " queue  ";
     video_stream_filter = av_bsf_get_by_name("null");
-
     break;
+
   case AV_CODEC_ID_H265:
     stream->video_payloader = " rtph265pay  ";
     stream->video_parser = " h265parse ";
     video_stream_filter = av_bsf_get_by_name("hevc_mp4toannexb");
     break;
+  case AV_CODEC_ID_MP2:
   case AV_CODEC_ID_AAC:
     printf("setting audio thing\n");
     stream->audio_parser = " aacparse  ";
     stream->audio_playloader = " rtpmp4apay ";
     printf("setting audio thing\n");
-
     break;
+
+  case AV_CODEC_ID_MPEG1VIDEO :
+  case AV_CODEC_ID_MPEG2VIDEO:
+    printf("setting video thing\n");
+    stream->audio_parser = " mpegvideoparse  ";
+    stream->audio_playloader = " rtpmp4vpay ";
+    printf("setting video thing\n");
+    break;
+
+
   default:
     video_stream_filter = av_bsf_get_by_name("null");
     printf("null filter \n");

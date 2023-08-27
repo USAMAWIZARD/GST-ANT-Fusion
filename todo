@@ -1,19 +1,16 @@
-Audio Done
-file me dived karna hia code ko
+Audio done
 awstesting
-//webrtc annexb-> plugin
-//rstp   annexb-> plugin
+file me dived karna hia code ko
+
+working
+SRT  to RTSP 
+RTMP to RTSP 
+WebRTC RTSP
+RTSP to RTSP 
+
 annexedb filter Done 
 
-crashing
+crashing almost done
 rtmp output Done
+
 why rtsp and gstreamer are working in parrrrllllel
-
-stream register 1
-caps            1
-pipeline init   1
-
-
-
-
-setstreamifn -- ---- api cal ====-> play -= unregister ---setstreaminfo--------play--------apicall
