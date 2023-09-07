@@ -1,0 +1,78 @@
+do-timestamp kaam ka hai usko mat hatana
+Audio Done
+file me dived karna hia code ko
+
+
+How user will install the plugin what files will be provided to users and how it will be provided ------------------------
+git hub sahi karna ahi ------------------------
+make it harder to reverse engg
+yearly
+
+
+make a test script that will publish video with ffmpeg using diffrent protocls and encoding after that it will try to play those videos and see if all of the video are playable 
+awstesting -- fix packet loss on udp
+annexedb filter Done
+Define a file for defautl protocl output without calling REST API
+
+crashing almost done
+rtmp output Done
+why rtsp and gstreamer are working in parrrrllllel
+
+
+Before release
+
+srt    ----> RTSP 
+RTMP   ----> RTSP 
+webrtc ----> RTSP
+RTP    ----> RTSP
+
+Codec supported
+
+VP8
+h264 
+h265 
+opus
+aac
+
+
+mpeg/audio
+
+
+-----------------
+
+rtmp ---- no dotimestanmp or custom time stamp working smooth
+rtsp ---- no dotimestanmp or custom time stamp working smooth
+
+
+--------------------
+RTSP
+--port
+--protocol
+
+RTMP
+stuff to put in config
+
+
+
+1. 
+
+
+solution 1:
+distribute binary in 2 pieces 
+fetch the half of the binary from server 
+keep that in memory
+patch the binary in memory
+run the binary
+
+
+
+new thread call in evey 10 sec from java side and c side 
+
+
+db 
+
+
+hashedpassed  hased
+
+licene hased
+
