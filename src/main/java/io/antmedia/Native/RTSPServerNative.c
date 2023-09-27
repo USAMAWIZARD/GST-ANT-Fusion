@@ -470,7 +470,7 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
       {
         encode_audio = " ! decodebin ! voaacenc  ! ";
       }
-      common_pipeline = g_strdup_printf(" %s audio. %s ! fakesink ", common_pipeline, encode_audio);
+      common_pipeline = g_strdup_printf(" %s audio. %s  ! muxer. ", common_pipeline, encode_audio);
       free(temp);
     }
 
@@ -481,7 +481,7 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   else if (g_strcmp0(pipeline_type, SRT_OUT) == 0)
   {
     printf("srt port is %s -------------------\n",pipeline_info->port_number);
-    char *srt_pipeline = g_strdup_printf(" matroskamux  name=muxer ! srtsink uri=srt://:%s wait-for-connection=false ",pipeline_info->port_number);
+    char *srt_pipeline = g_strdup_printf(" matroskamux  name=muxer ! srtsink uri=srt://:%s ",pipeline_info->port_number);
 
     if (stream_ctx->video_caps != NULL)
     {
