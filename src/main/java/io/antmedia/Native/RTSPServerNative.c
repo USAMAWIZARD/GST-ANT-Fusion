@@ -2,6 +2,7 @@
 #define PIPE_FFMPEG "FFmpeg"
 #define PIPE_RTSP "RTSP_OUT"
 #define RTP_OUT "RTP_OUT"
+#define SRT_OUT "SRT_OUT"
 #define PIPE_RTMP "RTMP_OUT"
 
 #define PACKET_TYPE_VIDEO 0
@@ -103,13 +104,24 @@ void print_java_struct_val(DataMaper *pMonitor)
   printf("data ---------------------------%s \n", pMonitor->port_number);
   printf("data ---------------------------%s \n", pMonitor->hostname);
 }
+int is_digits(const char *s)
+{
+  while (*s)
+  {
+    if (isdigit(*s++) == 0)
+      return 0;
+  }
+
+  return 1;
+}
+
 int get_config()
 {
   GKeyFile *keyfile;
   GError *error = NULL;
   gsize length;
   keyfile = g_key_file_new();
-  printf("----------\n");
+  printf( "----------\n");
   int status;
   if (!g_key_file_load_from_file(keyfile, "./gst_plugin.cfg", G_KEY_FILE_NONE, &error))
   {
@@ -125,20 +137,18 @@ int get_config()
     config.is_rtmp_enabled = 0;
     return;
   }
-
   printf("----------\n");
   config.is_rtsp_enabled = g_key_file_get_boolean(keyfile, "DefaultProtocols", "RTSP", NULL);
   config.is_rtmp_enabled = g_key_file_get_boolean(keyfile, "DefaultProtocols", "RTMP", NULL);
-
   char *rtsp_port = g_key_file_get_string(keyfile, "RTSP", "Port", NULL);
-  if (strcasecmp(rtsp_port, "NULL") == 0)
+  if (rtsp_port == NULL, strcasecmp(rtsp_port, "NULL") == 0 || rtsp_port == "" || !is_digits(rtsp_port))
   {
-    printf("retured string null ig\n");
-    config.rtsp_port = rtsp_port;
+    config.rtsp_port = "8554";
   }
   else
   {
-    config.rtsp_port = "8554";
+    printf("retured string null ig\n");
+    config.rtsp_port = rtsp_port;
   }
 
   char *rtsp_protocol = g_key_file_get_string(keyfile, "RTSP", "Protocol", NULL);
@@ -152,13 +162,13 @@ int get_config()
   }
 
   char *rtmp_port = g_key_file_get_string(keyfile, "RTMP", "Port", NULL);
-  if (rtmp_port != NULL)
+  if (rtmp_port == NULL, strcasecmp(rtmp_port, "NULL") == 0 || strcasecmp(rtmp_port, "") == 0 || !is_digits(rtmp_port))
   {
-    config.rtmp_port = rtmp_port;
+    config.rtmp_port = "1935";
   }
   else
   {
-    config.rtmp_port = "1935";
+    config.rtmp_port = rtmp_port;
   }
 
   printf("rtsp port: %s\n", config.rtsp_port);
@@ -189,9 +199,9 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
           fprintf(stdout, "bsf context is null\n");
           return;
         }
-        AVPacket * packet = av_packet_alloc();
+        AVPacket *packet = av_packet_alloc();
 
-        av_packet_ref(packet,pkt);
+        av_packet_ref(packet, pkt);
 
         int ret = av_bsf_send_packet(ctx->bsfContext, packet);
         if (ret != 0 && ret != AVERROR(EAGAIN))
@@ -239,7 +249,6 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
       break;
       case PACKET_TYPE_AUDIO:
       {
-        //  printf("recieved audio packets\n");
 
         if (ctx->audio_caps != NULL && ctx->audioappsrc != NULL)
         {
@@ -437,18 +446,31 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   }
   else if (g_strcmp0(pipeline_type, PIPE_RTMP) == 0)
   {
+    printf("RTMP out port is %s -------------------\n", config.rtmp_port);
     char *rtmp_pipline = g_strdup_printf(" flvmux name=muxer ! rtmpsink location=\"rtmp://127.0.0.1:%s/rtmpout?streamid=rtmpout/%s_rtmp_out\"", config.rtmp_port, streamId);
 
     if (stream_ctx->video_caps != NULL)
     {
       char *temp = common_pipeline;
-      common_pipeline = g_strdup_printf(" %s video.  ! muxer. ", common_pipeline);
+      char *encode_video = "";
+      if (stream_ctx->videopar->codec_id != AV_CODEC_ID_H264)
+      {
+     //    encode_video = " ! transcodebin profile=  ";
+      }
+
+      common_pipeline = g_strdup_printf(" %s video. %s !  muxer. ", common_pipeline, encode_video);
       free(temp);
     }
     if (stream_ctx->audio_caps != NULL)
     {
+
       char *temp = common_pipeline;
-      common_pipeline = g_strdup_printf(" %s audio. ! muxer. ", common_pipeline);
+      char *encode_audio = "";
+      if (stream_ctx->audiopar->codec_id != AV_CODEC_ID_AAC)
+      {
+        encode_audio = " ! decodebin ! voaacenc  ! ";
+      }
+      common_pipeline = g_strdup_printf(" %s audio. %s ! fakesink ", common_pipeline, encode_audio);
       free(temp);
     }
 
@@ -456,20 +478,58 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
     free(rtmp_pipline);
     return PIPELINE_TYPE_GSTREAMER;
   }
+  else if (g_strcmp0(pipeline_type, SRT_OUT) == 0)
+  {
+    printf("srt port is %s -------------------\n",pipeline_info->port_number);
+    char *srt_pipeline = g_strdup_printf(" matroskamux  name=muxer ! srtsink uri=srt://:%s wait-for-connection=false ",pipeline_info->port_number);
+
+    if (stream_ctx->video_caps != NULL)
+    {
+      char *temp = common_pipeline;
+      char *encode_video = "";
+      if (stream_ctx->videopar->codec_id != AV_CODEC_ID_H264)
+      {
+         encode_video = " ! decodebin ! h264enc ";
+      }
+
+      common_pipeline = g_strdup_printf(" %s video.  !  muxer. ", common_pipeline);
+      free(temp);
+    }
+    if (stream_ctx->audio_caps != NULL)
+    {
+      char *temp = common_pipeline;
+      char *encode_audio = "";
+      if (stream_ctx->audiopar->codec_id != AV_CODEC_ID_AAC && stream_ctx->audiopar->codec_id != AV_CODEC_ID_OPUS)
+      {
+        encode_audio = " ! decodebin ! voaacenc  ! ";
+      }
+      common_pipeline = g_strdup_printf(" %s audio. !  muxer. ", common_pipeline);
+      free(temp);
+    }
+
+    *pipeline_out = strcat_dyn(common_pipeline, srt_pipeline);
+    free(srt_pipeline);
+    return PIPELINE_TYPE_GSTREAMER;
+  }
+
   else if (g_strcmp0(pipeline_type, RTP_OUT) == 0)
   {
-    char *rtp_pipeline = g_strdup_printf(" rtpmux name=muxer ! %s host=%s port=%s", "udpsink", "127.0.0.1", "8000");
+    // make it dynamic
+    char *rtp_pipeline = g_strdup_printf(" %s  name=udp_sink host=%s port=%s", "udpsink", pipeline_info->hostname, pipeline_info->port_number);
     char pay = 0;
     if (stream_ctx->video_caps != NULL)
     {
-      common_pipeline = g_strdup_printf("%s video.  ! %s pt=96  !  muxer.sink_%d  ", common_pipeline, stream_ctx->video_payloader, pay);
+      common_pipeline = g_strdup_printf("%s video.  ! %s pt=96  ! udp_sink.  ", common_pipeline, stream_ctx->video_payloader, pay);
       pay++;
     }
-    // if (stream_ctx->audio_caps != NULL)
-    //{
-    //   common_pipeline = g_strdup_printf("%s audio.  ! %s pt=97 !  muxer.sink_%d ", common_pipeline, stream_ctx->audio_playloader, pay);
-    //   pay++;
-    // }
+    // audio is linked to fakesink will have to fix later
+    if (stream_ctx->audio_caps != NULL)
+    {
+      // original pipeline
+      //  common_pipeline = g_strdup_printf("%s audio. ! %s pt=97  muxer.sink_%d ", common_pipeline, stream_ctx->audio_playloader, pay);
+      common_pipeline = g_strdup_printf("%s audio. ! fakesink ", common_pipeline);
+      pay++;
+    }
     common_pipeline = strcat_dyn(common_pipeline, rtp_pipeline);
     // have to look into this too\n
     *pipeline_out = common_pipeline;
@@ -572,8 +632,8 @@ AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(Strea
   case AV_CODEC_ID_H264:
     video_stream_filter = av_bsf_get_by_name("h264_mp4toannexb");
     printf("h264 initilaized \n");
-    stream->video_payloader = " rtph264pay  ";
-    stream->video_parser = " h264parse  ";
+    stream->video_payloader = " rtph264pay ";
+    stream->video_parser = " h264parse config-interval=1 ";
 
     break;
 
@@ -581,11 +641,10 @@ AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(Strea
     stream->video_payloader = " rtpvp8pay  ";
     stream->video_parser = " queue  ";
     video_stream_filter = av_bsf_get_by_name("null");
-
     break;
   case AV_CODEC_ID_H265:
     stream->video_payloader = " rtph265pay  ";
-    stream->video_parser = " h265parse ";
+    stream->video_parser = " h265parse config-interval=1 ";
     video_stream_filter = av_bsf_get_by_name("hevc_mp4toannexb");
     break;
   case AV_CODEC_ID_AAC:
@@ -593,7 +652,7 @@ AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(Strea
     stream->audio_parser = " aacparse  ";
     stream->audio_playloader = " rtpmp4apay ";
     printf("setting audio thing\n");
-  break;
+    break;
   case AV_CODEC_ID_OPUS:
     printf("setting audio thing\n");
     stream->audio_parser = " opusparse  ";
@@ -824,20 +883,19 @@ int add_ffmpeg_pipeline(char *pipeline, char *streamId)
 void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rational, int is_stream_enabled, int stream_type) // yaha pe copy karna hai problem aasakta hai dealloc ka
 {
   printf("setStreamInfo called\n");
-  if (is_stream_enabled != 1 || codecPar == NULL) {
-    printf("Stream Type %d is disabed %d\n",  stream_type ,is_stream_enabled);
+  if (is_stream_enabled != 1 || codecPar == NULL)
+  {
+    printf("Stream Type %d is disabed %d\n", stream_type, is_stream_enabled);
     return;
   }
-  printf("%p\n",codecPar);
-  printf("%d\n",codecPar->codec_id);
-  
-  printf("codec id---------- %d\n",codecPar->codec_id);
+  printf("%p\n", codecPar);
+  printf("%d\n", codecPar->codec_id);
+
+  printf("codec id---------- %d\n", codecPar->codec_id);
   AVCodecParameters *params = avcodec_parameters_alloc();
-  avcodec_parameters_copy(params,codecPar);
+  avcodec_parameters_copy(params, codecPar);
   codecPar = params;
-  printf("Stream Type: %s is_Enabled: %s\n",  stream_type == 0 ? "video" :"audio",is_stream_enabled == 1 ? "true" :"false");
-
-
+  printf("Stream Type: %s is_Enabled: %s\n", stream_type == 0 ? "video" : "audio", is_stream_enabled == 1 ? "true" : "false");
 
   streamId = strdup(streamId);
 

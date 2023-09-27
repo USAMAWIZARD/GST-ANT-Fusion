@@ -25,7 +25,6 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 	static void call_init_rtsp_server() {
 		Thread initThread = new Thread(() -> JNA_RTSP_SERVER.INSTANCE.init_plugin());
 		initThread.start();
-
 	}
 
 	private int packetCount = 0;

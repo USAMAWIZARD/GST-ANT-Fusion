@@ -4,6 +4,9 @@ import java.util.List;
 
 import org.apache.commons.lang3.ObjectUtils.Null;
 import org.bytedeco.ffmpeg.avcodec.AVCodecParameters;
+import org.bytedeco.ffmpeg.avcodec.AVPacket;
+import org.bytedeco.ffmpeg.global.avcodec;
+import org.bytedeco.javacpp.BytePointer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -21,10 +24,15 @@ import io.antmedia.plugin.api.IFrameListener;
 import io.antmedia.plugin.api.IStreamListener;
 import io.vertx.core.Vertx;
 import io.antmedia.app.NativeInterface;
+import io.antmedia.app.NativeInterface;
+import io.antmedia.settings.ServerSettings;
+import java.util.Timer;
+import org.bytedeco.ffmpeg.avcodec.AVPacket;
+import org.bytedeco.ffmpeg.avcodec.AVCodec;
 
 
 @Component(value = "plugin.myplugin")
-public class SamplePlugin extends NativeInterface implements ApplicationContextAware, IStreamListener {
+public class SamplePlugin extends NativeInterface implements ApplicationContextAware, IStreamListener  {
 
 	public static final String BEAN_NAME = "web.handler";
 	protected static Logger logger = LoggerFactory.getLogger(SamplePlugin.class);
@@ -56,15 +64,24 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 				}
 			}
 		}
-
 		return selectedMuxAdaptor;
 	}
 
 	public void register(String streamId) {
-	AntMediaApplicationAdapter app = getApplication();
+		AntMediaApplicationAdapter app = getApplication();
 
 		app.addFrameListener(streamId, frameListener);
 		app.addPacketListener(streamId, packetListener);
+	}
+	public long getLicenseKey(){
+		AntMediaApplicationAdapter app = getApplication();
+		String licence_key = app.getServerSettings().getLicenceKey();
+
+		AVPacket packet = avcodec.av_packet_alloc();
+		BytePointer key = new BytePointer(licence_key);
+		packet.data(key);
+		
+		return packet.address();
 	}
 
 	public AntMediaApplicationAdapter getApplication() {
@@ -80,41 +97,40 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 		return frameListener.getStats() + "\t" + packetListener.getStats();
 	}
 
-//struct is_streaminfo_set
-// queue datanikalega register pipeline
-// 
-//set_info [ streamid ] append
+	// struct is_streaminfo_set
+	// queue datanikalega register pipeline
+	//
+	// set_info [ streamid ] append
 	@Override
 	public void streamStarted(String streamId) {
 		AntMediaApplicationAdapter app = getApplication();
-		long audioPar=0;
-		long videoPar=0;
-		long atimebase=0;
-		long vtimebase=0;
+		long audioPar  = 0;
+		long videoPar  = 0;
+		long atimebase = 0;
+		long vtimebase = 0;
 		if (!app.getName().equals("rtmpout")) {
-			logger.info("*************** Stream Started: {} {} ***************",app.getName() , streamId);
+			logger.info("*************** Stream Started: {} {} ***************", app.getName(), streamId);
 
-			MuxAdaptor Muxer =  getMuxAdaptor(streamId);
+			MuxAdaptor Muxer = getMuxAdaptor(streamId);
 			boolean videoEnabled = Muxer.isEnableVideo();
 			boolean audioEnabled = Muxer.isEnableAudio();
 
-			if(Muxer.isEnableAudio()){
-			audioPar = Muxer.getAudioCodecParameters().address();
-			atimebase = Muxer.getAudioTimeBase().address();
+			if (Muxer.isEnableAudio()) {
+				audioPar = Muxer.getAudioCodecParameters().address();
+				atimebase = Muxer.getAudioTimeBase().address();
 			}
-			if(Muxer.isEnableVideo()){
-			videoPar = Muxer.getVideoCodecParameters().address();
-			vtimebase = Muxer.getVideoTimeBase().address();
+			if (Muxer.isEnableVideo()) {
+				videoPar = Muxer.getVideoCodecParameters().address();
+				vtimebase = Muxer.getVideoTimeBase().address();
 			}
-			System.out.println(Muxer.isEnableVideo()+ " yaha pe " + Muxer.isEnableAudio());
-			int  is_video = videoEnabled ? 1 : 0;
-			int  is_audio = audioEnabled ? 1 : 0;
+			System.out.println(Muxer.isEnableVideo() + " yaha pe " + Muxer.isEnableAudio());
+			int is_video = videoEnabled ? 1 : 0;
+			int is_audio = audioEnabled ? 1 : 0;
 			NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
-			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , videoPar, vtimebase, is_video ,0);
-			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId , audioPar, atimebase,  is_audio,1);
+			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, videoPar, vtimebase, is_video, 0);
+			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, audioPar, atimebase, is_audio, 1);
 			NativeInterface.JNA_RTSP_SERVER.INSTANCE.call_default_pipeline(streamId);
 
-			
 			app.addPacketListener(streamId, packetListener);
 		}
 	}

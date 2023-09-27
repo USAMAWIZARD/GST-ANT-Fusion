@@ -1,30 +1,34 @@
 do-timestamp kaam ka hai usko mat hatana
 Audio Done
+rtmp output Done
+annexedb filter Done
+Define a file for defautl protocl output without calling REST API Done
+crashing almost done
+install script done
+How user will install the plugin what files will be provided to users and how it will be provided done
+
+
 file me dived karna hia code ko
-
-
-How user will install the plugin what files will be provided to users and how it will be provided ------------------------
+ ------------------------
 git hub sahi karna ahi ------------------------
+
 make it harder to reverse engg
 yearly
-
-
-make a test script that will publish video with ffmpeg using diffrent protocls and encoding after that it will try to play those videos and see if all of the video are playable 
+transcode audio vidoe for RTMP if needed
+RTP fix audio
 awstesting -- fix packet loss on udp
-annexedb filter Done
-Define a file for defautl protocl output without calling REST API
-
-crashing almost done
-rtmp output Done
 why rtsp and gstreamer are working in parrrrllllel
-
+make a test script that will publish video with ffmpeg using diffrent protocls and encoding after that it will try to play those videos and see if all of the video are playable 
+add defult gstreamer pipeline
 
 Before release
 
-srt    ----> RTSP 
-RTMP   ----> RTSP 
+srt    ----> RTSP
+RTMP   ----> RTSP
 webrtc ----> RTSP
 RTP    ----> RTSP
+
+RTP ---->  Plugin --->  ANTMEDIA
 
 Codec supported
 
@@ -34,6 +38,7 @@ h265
 opus
 aac
 
+Not supported
 
 mpeg/audio
 
@@ -74,5 +79,29 @@ db
 
 hashedpassed  hased
 
-licene hased
 
+licene hashed
+
+kinisis
+srt
+filesink
+extract audi
+AI
+srt out
+rist out
+plain udp 
+plain tcp
+whepsrc
+licene key as avpacket callback read avpcaket compare hash
+
+
+i frame ----> [ ]
+
+filter
+
+forward          modify            save         
+protocol
+
+rtmp                                
+RTP
+rtsp

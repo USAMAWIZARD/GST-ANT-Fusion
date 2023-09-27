@@ -54,7 +54,7 @@ class RequestPipeline extends NativeInterface {
 }
 
 @Component
-@Path("/sample-plugin")
+@Path("/pipeline")
 public class RestService {
 
 	@Context
@@ -104,6 +104,7 @@ public class RestService {
 			case "RTMP_OUT": {
 			}
 				break;
+			case "SRT_OUT":
 			case "RTP_OUT": {
 				if (Request.port == null || Request.hostname == null) {
 					return Response.status(Status.OK)
@@ -115,6 +116,7 @@ public class RestService {
 				pipeline_info.protocol = Request.protocol;
 				break;
 			}
+			
 			default:
 				return Response.status(Status.OK)
 						.entity(new Result(false, "Please Specify a valid pipeline type"))
