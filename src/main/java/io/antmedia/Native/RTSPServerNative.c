@@ -5,6 +5,7 @@
 #define SRT_OUT "SRT_OUT"
 #define PIPE_RTMP "RTMP_OUT"
 
+#define PACKET_TYPE_LICENSE 2
 #define PACKET_TYPE_VIDEO 0
 #define PACKET_TYPE_AUDIO 1
 #define H264Parser "h264parse"
@@ -95,8 +96,8 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
 int init_Codec(StreamMap *stream);
 AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(StreamMap *stream, int codecId);
 
-void print_java_struct_val(DataMaper *pMonitor)
-{
+
+void print_java_struct_val(DataMaper *pMonitor){
   printf("data ---------------------------%s \n", pMonitor->streamId);
   printf("data ---------------------------%s \n", pMonitor->pipeline_type);
   printf("data ---------------------------%s \n", pMonitor->pipeline);
@@ -262,6 +263,8 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
         }
         break;
       }
+
+      break;
       default:
       {
         printf("UNSUPPORTED MEDIA TYPE :%d\n", pktType);
@@ -481,7 +484,7 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   else if (g_strcmp0(pipeline_type, SRT_OUT) == 0)
   {
     printf("srt port is %s -------------------\n",pipeline_info->port_number);
-    char *srt_pipeline = g_strdup_printf(" matroskamux  name=muxer ! srtsink uri=srt://:%s ",pipeline_info->port_number);
+    char *srt_pipeline = g_strdup_printf(" matroskamux  name=muxer ! srtsink uri=srt://:%s  wait-for-connection=false ",pipeline_info->port_number);
 
     if (stream_ctx->video_caps != NULL)
     {
@@ -633,7 +636,7 @@ AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(Strea
     video_stream_filter = av_bsf_get_by_name("h264_mp4toannexb");
     printf("h264 initilaized \n");
     stream->video_payloader = " rtph264pay ";
-    stream->video_parser = " h264parse config-interval=1 ";
+    stream->video_parser = " h264parse config-interval=2 ";
 
     break;
 
@@ -644,7 +647,7 @@ AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(Strea
     break;
   case AV_CODEC_ID_H265:
     stream->video_payloader = " rtph265pay  ";
-    stream->video_parser = " h265parse config-interval=1 ";
+    stream->video_parser = " h265parse config-interval=2 ";
     video_stream_filter = av_bsf_get_by_name("hevc_mp4toannexb");
     break;
   case AV_CODEC_ID_AAC:
@@ -755,7 +758,7 @@ void init_gst_and_RTSP()
 
   g_main_loop_run(loop);
 }
-void init_plugin()
+void init_plugin(char *license_key)
 {
   get_config();
   setenv("GST_DEBUG", "3", 1);
@@ -763,6 +766,7 @@ void init_plugin()
   setenv("GST_DEBUG_DUMP_DOT_DIR", "/home/usama/gstlogs/", 1);
   pthread_mutex_init(&hashtable_mutex, NULL);
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
+  g_hash_table_insert(hash_table, "" , "");
   init_gst_and_RTSP();
 }
 static void

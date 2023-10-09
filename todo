@@ -20,7 +20,7 @@ awstesting -- fix packet loss on udp
 why rtsp and gstreamer are working in parrrrllllel
 make a test script that will publish video with ffmpeg using diffrent protocls and encoding after that it will try to play those videos and see if all of the video are playable 
 add defult gstreamer pipeline
-
+stream switcher
 Before release
 
 srt    ----> RTSP

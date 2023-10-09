@@ -80,7 +80,7 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 		AVPacket packet = avcodec.av_packet_alloc();
 		BytePointer key = new BytePointer(licence_key);
 		packet.data(key);
-		
+		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(),"av_packet_init_video",2);
 		return packet.address();
 	}
 

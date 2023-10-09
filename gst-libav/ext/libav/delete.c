@@ -48,7 +48,7 @@ gboolean removecaps(GstCapsFeatures *features,
                     GstStructure *structure,
                     gpointer user_data)
 {
-  printf("lesssss gooo going into remove caps");
+  printf("------------removing caps------------");
   gst_structure_remove_field(structure, "framerate");
   printf("----------cps --%s------------\n", gst_structure_to_string(structure));
   return 1;
