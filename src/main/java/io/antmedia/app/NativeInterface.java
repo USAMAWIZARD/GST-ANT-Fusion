@@ -7,7 +7,11 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.Structure.*;
-import io.antmedia.app.DataMaper;
+import io.antmedia.app.DataMaper;                                                                      
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class NativeInterface {
 public static interface JNA_RTSP_SERVER extends Library {

@@ -1,14 +1,14 @@
 #!/bin/sh
-AMS_DIR=/usr/local/antmedia/
+AMS_DIR=/home/usama/test
 
 set -xe
 
 mvn clean install -Dmaven.javadoc.skip=true -Dmaven.test.skip=true -Dgpg.skip=true
 
-gcc ./gst-libav/build/ext/libav/libgstlibav.so.p/* -shared -fPIC -o /usr/local/antmedia/lib/native/libGstRTSP.so src/main/java/io/antmedia/Native/RTSPServerNative.c   -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0 ` -lavcodec -lpthread  
+gcc ./gst-libav/build/ext/libav/libgstlibav.so.p/* -shared -fPIC -o $AMS_DIR/lib/native/libGstRTSP.so src/main/java/io/antmedia/Native/RTSPServerNative.c   -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0 libsoup-2.4 ` -lavcodec -lpthread  
 
-#scp -i /home/usama/Desktop/aws/ovh/amstest.pem   /usr/local/antmedia/plugins/PluginApp.jar      ubuntu@ec2-3-110-204-50.ap-south-1.compute.amazonaws.com:/usr/local/antmedia/plugins/
-#scp -i /home/usama/Desktop/aws/ovh/amstest.pem   /usr/local/antmedia/lib/native/libGstRTSP.so   ubuntu@ec2-3-110-204-50.ap-south-1.compute.amazonaws.com:/usr/local/antmedia/lib/native/
+#scp -i /home/usama/Desktop/aws/ovh/amstest.pem   $AMS_DIRplugins/PluginApp.jar      ubuntu@ec2-3-110-204-50.ap-south-1.compute.amazonaws.com:$AMS_DIRplugins/
+#scp -i /home/usama/Desktop/aws/ovh/amstest.pem   $AMS_DIRlib/native/libGstRTSP.so   ubuntu@ec2-3-110-204-50.ap-south-1.compute.amazonaws.com:$AMS_DIRlib/native/
 
 
 OUT=$?
@@ -21,7 +21,7 @@ rm -r $AMS_DIR/plugins/PluginApp*
 cp target/PluginApp.jar $AMS_DIR/plugins/
 
 cp target/PluginApp.jar ./dist
-cp /usr/local/antmedia/lib/native/libGstRTSP.so ./dist
+cp $AMS_DIR/lib/native/libGstRTSP.so ./dist
 
 
 OUT=$?
@@ -29,7 +29,7 @@ OUT=$?
 if [ $OUT -ne 0 ]; then
     exit $OUT
 fi
-cd  /usr/local/antmedia/
+cd  $AMS_DIR
 ./start-debug.sh
 
 

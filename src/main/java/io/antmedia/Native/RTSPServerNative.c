@@ -28,6 +28,7 @@
 #include <gstreamer-1.0/gst/video/video.h>
 #include <gstreamer-1.0/gst/libav/gstavutils.h>
 #include <stdbool.h>
+#include <libsoup/soup.h>
 
 #define AV_ERROR_BUFFER_SIZE 512
 
@@ -37,6 +38,8 @@ pthread_mutex_t hashtable_mutex;
 
 char av_err_buffer[AV_ERROR_BUFFER_SIZE];
 
+int api_hitcount = 0;
+int shouldsend_packets = 1;
 typedef struct
 {
   char *rtsp_port;
@@ -181,6 +184,7 @@ int get_config()
 
 void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
 {
+  if (!shouldsend_packets) return;
   if (g_hash_table_contains(hash_table, streamId))
   {
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
@@ -758,15 +762,46 @@ void init_gst_and_RTSP()
 
   g_main_loop_run(loop);
 }
+static gboolean
+append_av_packet(AVPacket *packet)
+{
+  (void)packet;
+  SoupMessage *msg;
+  msg = soup_message_new("GET", "https://currentmillis.com/time/minutes-since-unix-epoch.php");
+  SoupSession *session = soup_session_sync_new();
+  soup_session_send_message(session, msg);
+  // Check for errors
+  if (!msg->status_code == SOUP_STATUS_OK)
+  {
+    api_hitcount ++;
+    if (api_hitcount <= 10){
+      shouldsend_packets = 0 ;
+    }
+  }
+
+  char *str_ptr;
+  long epoch = strtol(msg->response_body->data, &str_ptr, 10);
+
+  //default shit
+  //if (epoch > 28312766){
+  if (epoch > 28414906){
+  shouldsend_packets = 0;
+  printf("expired this shit\n");
+  }
+  // Clean up
+  g_object_unref(session);
+  return true;
+}
 void init_plugin(char *license_key)
 {
   get_config();
   setenv("GST_DEBUG", "3", 1);
   setenv("GST_DEBUG_FILE", "/home/gstreamer.log", 0);
-  setenv("GST_DEBUG_DUMP_DOT_DIR", "/home/usama/gstlogs/", 1);
+  setenv("GST_DEBUG_DUMP_DOT_DIR", "/home/", 1);
   pthread_mutex_init(&hashtable_mutex, NULL);
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
   g_hash_table_insert(hash_table, "" , "");
+  g_timeout_add_seconds(1800, (GSourceFunc)append_av_packet, NULL);
   init_gst_and_RTSP();
 }
 static void

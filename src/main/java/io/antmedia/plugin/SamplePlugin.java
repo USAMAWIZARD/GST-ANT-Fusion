@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 import com.sun.jna.Pointer;
 
 import io.antmedia.AntMediaApplicationAdapter;
-import io.antmedia.app.SampleFrameListener;
 import io.antmedia.app.SamplePacketListener;
 import io.antmedia.muxer.MuxAdaptor;
 import io.antmedia.plugin.api.IFrameListener;
@@ -29,6 +28,7 @@ import io.antmedia.settings.ServerSettings;
 import java.util.Timer;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.avcodec.AVCodec;
+import java.util.Collection;
 
 
 @Component(value = "plugin.myplugin")
@@ -38,7 +38,6 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 	protected static Logger logger = LoggerFactory.getLogger(SamplePlugin.class);
 
 	private Vertx vertx;
-	private SampleFrameListener frameListener = new SampleFrameListener();
 	private SamplePacketListener packetListener = new SamplePacketListener();
 	private ApplicationContext applicationContext;
 
@@ -54,9 +53,8 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 	public MuxAdaptor getMuxAdaptor(String streamId) {
 		AntMediaApplicationAdapter application = getApplication();
 		MuxAdaptor selectedMuxAdaptor = null;
-
 		if (application != null) {
-			List<MuxAdaptor> muxAdaptors = application.getMuxAdaptors();
+			Collection<MuxAdaptor> muxAdaptors = application.getMuxAdaptors();
 			for (MuxAdaptor muxAdaptor : muxAdaptors) {
 				if (streamId.equals(muxAdaptor.getStreamId())) {
 					selectedMuxAdaptor = muxAdaptor;
@@ -70,7 +68,6 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 	public void register(String streamId) {
 		AntMediaApplicationAdapter app = getApplication();
 
-		app.addFrameListener(streamId, frameListener);
 		app.addPacketListener(streamId, packetListener);
 	}
 	public long getLicenseKey(){
@@ -94,7 +91,7 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 	}
 
 	public String getStats() {
-		return frameListener.getStats() + "\t" + packetListener.getStats();
+		return "\t" + packetListener.getStats();
 	}
 
 	// struct is_streaminfo_set
