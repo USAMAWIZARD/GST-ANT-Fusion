@@ -94,10 +94,7 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 		return "\t" + packetListener.getStats();
 	}
 
-	// struct is_streaminfo_set
-	// queue datanikalega register pipeline
-	//
-	// set_info [ streamid ] append
+
 	@Override
 	public void streamStarted(String streamId) {
 		AntMediaApplicationAdapter app = getApplication();
@@ -120,7 +117,7 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 				videoPar = Muxer.getVideoCodecParameters().address();
 				vtimebase = Muxer.getVideoTimeBase().address();
 			}
-			System.out.println(Muxer.isEnableVideo() + " yaha pe " + Muxer.isEnableAudio());
+			System.out.println("Video Enabled : "+ Muxer.isEnableVideo() +" Audio Enabled : "+ Muxer.isEnableAudio());
 			int is_video = videoEnabled ? 1 : 0;
 			int is_audio = audioEnabled ? 1 : 0;
 			NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);

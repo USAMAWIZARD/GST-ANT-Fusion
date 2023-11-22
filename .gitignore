@@ -3,3 +3,5 @@
 /.project
 /.settings/
 ./test/high.mp4
+/bin
+/.vscode
