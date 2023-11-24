@@ -1,11 +1,8 @@
 
 package io.antmedia.app;
-
 import com.sun.jna.Library;
 import com.sun.jna.Native;
-
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
-
 import io.antmedia.plugin.api.IPacketListener;
 import io.antmedia.plugin.api.StreamParametersInfo;
 import io.antmedia.app.NativeInterface.JNA_RTSP_SERVER;
@@ -19,7 +16,6 @@ import java.util.TimerTask;
 	
 public class SamplePacketListener extends NativeInterface implements IPacketListener {
 	static int is_init = 0;
-	static boolean isvalidframe=true;
 	static int count=0;
 	public SamplePacketListener() {
 		if (is_init == 0)
@@ -37,13 +33,11 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 	@Override
 	public void writeTrailer(String streamId) {
 		System.out.println("SamplePacketListener.writeTrailer()");
-
 	}
 
 	@Override
 	public AVPacket onVideoPacket(String streamId, AVPacket packet) {
 		//	System.out.println("sending video packet to c pipeline\n");
-		if(isvalidframe)
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(), streamId,0);
 		return packet;
 	}
@@ -51,7 +45,6 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 	@Override
 	public AVPacket onAudioPacket(String streamId, AVPacket packet) {
 		//System.out.println("sending audio packet to c pipeline\n");
-		if(isvalidframe)
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(), streamId,1);
 		return packet;
 	}

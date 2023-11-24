@@ -5,11 +5,8 @@
 #define SRT_OUT "SRT_OUT"
 #define PIPE_RTMP "RTMP_OUT"
 
-#define PACKET_TYPE_LICENSE 2
 #define PACKET_TYPE_VIDEO 0
 #define PACKET_TYPE_AUDIO 1
-#define H264Parser "h264parse"
-#define OPUSParser "opusparse"
 
 #include <stdio.h>
 #include <libavutil/frame.h>
@@ -38,8 +35,6 @@ pthread_mutex_t hashtable_mutex;
 
 char av_err_buffer[AV_ERROR_BUFFER_SIZE];
 
-int api_hitcount = 0;
-int shouldsend_packets = 1;
 typedef struct
 {
   char *rtsp_port;
@@ -173,8 +168,6 @@ int get_config()
 
 void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
 {
-  if (!shouldsend_packets)
-    return;
   if (g_hash_table_contains(hash_table, streamId))
   {
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
@@ -252,7 +245,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
           gst_buffer_fill(buffer, 0, data, pkt->size);
           g_assert(ctx->audioappsrc);
           gst_app_src_push_buffer((GstAppSrc *)ctx->audioappsrc, buffer);
-          //    printf("pushing audio packets to audio sink\n");
+          // printf("pushing audio packets to audio sink\n");
         }
         break;
       }
@@ -261,7 +254,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
       default:
       {
         printf("UNSUPPORTED MEDIA TYPE :%d\n", pktType);
-        g_assert(0 && "UNSUPPORTED MEDIA TYPE");
+        //g_assert(0 && "UNSUPPORTED MEDIA TYPE");
         return;
       }
       }
@@ -285,7 +278,7 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
     GstElement *element, *videoappsrc, *audioappsrc;
     element = gst_rtsp_media_get_element(media);
     ctx->pipeline = element;
-    GST_DEBUG_BIN_TO_DOT_FILE(element, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");
+    //GST_DEBUG_BIN_TO_DOT_FILE(element, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");
 
     char app_src[128];
     if (ctx->video_caps != NULL)
@@ -303,7 +296,8 @@ static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, g
       g_assert(audioappsrc);
     }
 
-    // printf("initializing video app src\n");
+    //printf("initializing video app src\n");
+  
     ctx->pipeline_initialized = 1;
   }
   else
@@ -332,7 +326,7 @@ char *strcat_dyn(char *str1, char *str2)
   strcpy(str + len1, str2);
   return str;
 }
-parse_codec(StreamMap *ctx)
+void parse_codec(StreamMap *ctx)
 {
   char *str_caps;
 
@@ -345,7 +339,7 @@ parse_codec(StreamMap *ctx)
 
     codec_context = avcodec_alloc_context3(decoder);
     if (avcodec_parameters_to_context(codec_context, ctx->bsfContext->par_out) < 0)
-      g_assert(1 && "parameter to context failed");
+    g_assert(1 && "parameter to context failed");  // possible segfault
     int extradata_size = codec_context->extradata_size;
     codec_context->extradata_size = 0;
     gst_ffmpeg_codecid_to_caps(ctx->videopar->codec_id, codec_context, 1, &str_caps);
@@ -371,7 +365,6 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   char *pipeline_type = pipeline_info->pipeline_type;
   char *pipeline = pipeline_info->pipeline;
 
-  // TODO: generate pipeline based on the codec
   parse_codec(stream_ctx);
   char *common_pipeline = " ", *common_video, *common_audio;
   if (stream_ctx->video_caps == NULL && stream_ctx->audio_caps == NULL)
@@ -523,13 +516,6 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
     printf("handler on streamId (%s) for pipeline (%s) is not defined\n", streamId, pipeline_type);
     return PIPELINE_TYPE_ERROR;
   }
-
-  // TODO: generate pipeline based on the codec
-  // const char *STATIC_PIPELINE = "appsrc name=%s is-live=true  do-timestamp=true ! queue ! capsfilter caps=\"video/x-h264\" !  h264parse ! %s";
-  // char *pipe = malloc(sizeof(char) * strlen(STATIC_PIPELINE) + strlen(streamId) + strlen(pipeline));
-  // sprintf(pipe, STATIC_PIPELINE, streamId, pipeline);
-  // printf("printing dynamically generated pipeline\n");
-  // printf("%s\n", pipe);
 }
 
 char *register_pipeline(DataMaper *pipeline_info)
@@ -834,7 +820,8 @@ char *add_gstreamer_pipeline(char *streamId, char *pipeline)
   return NULL;
 }
 int add_ffmpeg_pipeline(char *pipeline, char *streamId)
-{
+{ // Todo Add FFmpeg Support
+
   return 0;
 }
 
@@ -859,7 +846,6 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
   }
   if (g_hash_table_contains(hash_table, streamId))
   {
-
     if (codecPar == NULL)
     {
       printf("codec parameter is null\n");

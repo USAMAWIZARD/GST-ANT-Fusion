@@ -30,8 +30,6 @@ public static interface JNA_RTSP_SERVER extends Library {
 
         void setStreamInfo(String streamId, long codecPar ,  long rational , int isEnabled,int streamType ); // pkt codecType 0=video codecType 1=audio
 
-        void print_java_struct_val(DataMaper pMonitor);	
-
         void call_default_pipeline(String streamid);
     }
 }

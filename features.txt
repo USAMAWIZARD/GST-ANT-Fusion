@@ -1,24 +1,23 @@
 should support
 
 Injest and Egress
-rtp 
 
+rtp Partialy Done 
 try to use hardware decoder
-REST should support RTSP pipileine Done
-REST should support ffmpeg pipileine  
-REST should support gstreamer pipileine Done
-REST should support sending to kenisis 
+should support RTSP pipileine Done
+should support ffmpeg pipileine  
+should support gstreamer pipileine Done
+should support sending to kenisis 
+Integrate deepstream
 should support python 
-SRT
+SRT OUT Done
 
 suould support ams to gst ----back to asm streams wit gstreamer pipeline
 Tricripber https://rustrepo.com/repo/gstreamer-plugin-for-speech-to-text-using-the-vosk-toolkit
 
-
 https://medium.com/@mtlazul/gstinference-performing-tensorflow-inference-on-gstreamer-52b64b2df07e
 https://sahilchachra.medium.com/all-you-want-to-get-started-with-gstreamer-in-python-2276d9ed548e
 https://www.it-jim.com/blog/gstreamer-for-computer-vision-and-audio-processing/
-
-
+https://medium.com/@karthickai/using-gstreamer-plugin-to-extract-detected-object-from-nvidia-deepstream-104879cc7154
 
 
