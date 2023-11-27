@@ -7,3 +7,12 @@ sudo cp ./libGstRTSP.so /usr/local/antmedia/lib/native/
 sudo cp ./gst_plugin.cfg /usr/local/antmedia/
 
 sudo systemctl restart antmedia
+
+#sudo apt-get -y install openjdk-11-jdk-headless
+#sudo apt install gcc
+
+# settings.webRTCEnabled=false
+# settings.hlsMuxingEnabled=false
+# dashHttpStreaming=false
+# rtmpPlaybackEnabled=true
+#rm -rf ./PluginApp.jar ./libGstRTSP.so 
