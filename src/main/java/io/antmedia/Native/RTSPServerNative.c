@@ -249,7 +249,6 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
         }
         break;
       }
-
       break;
       default:
       {
@@ -916,7 +915,6 @@ void unregister_stream(char *streamId) // TODO : Free allocated resources
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamid_d);
     if (ctx->pipeline != NULL)
     {
-      // printf("%s\n",gst_element_set_state(ctx->pipeline));
       gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
       ctx->pipeline = NULL;
       printf("unrefing pipelien(%s)\n", streamid_d);
@@ -934,7 +932,7 @@ void unregister_stream(char *streamId) // TODO : Free allocated resources
     g_hash_table_remove(hash_table, streamid_d);
     if (g_hash_table_contains(hash_table, streamid_d))
     {
-      printf("-------------------------not freed for some reason\n");
+      printf("-------------------------not freed for some reason-----------\n");
     }
 
     printf("stream unregistered %s\n", streamid_d);
