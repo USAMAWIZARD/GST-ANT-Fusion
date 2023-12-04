@@ -1,13 +1,15 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-	<parent>
-		<groupId>io.antmedia</groupId>
-		<artifactId>parent</artifactId>
-		<version>2.6.3-SNAPSHOT</version>
-	</parent>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/
+2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 h
+ttp://maven.apache.org/maven-v4_0_0.xsd">
+    <parent>
+        <groupId>io.antmedia</groupId>
+        <artifactId>parent</artifactId>
+        <version>2.8.0-SNAPSHOT</version>
+    </parent>
+
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.antmedia.plugin</groupId>
-	<artifactId>SamplePlugin</artifactId>
+	<artifactId>GST-Ant-Fusion</artifactId>
 	<packaging>jar</packaging>
 	<name>Plugin Maven Webapp</name>
 	<url>http://maven.apache.org</url>
@@ -279,12 +281,7 @@
 			<version>${spring.version}</version>
 			<scope>provided</scope>
 		</dependency>
-		<dependency>
-			<groupId>javax.servlet</groupId>
-			<artifactId>servlet-api</artifactId>
-			<version>${servlet.version}</version>
-			<scope>provided</scope>
-		</dependency>
+
 		  <dependency>
             <groupId>org.glassfish.jersey.media</groupId>
             <artifactId>jersey-media-json-jackson</artifactId>
@@ -292,11 +289,11 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-    			<groupId>org.glassfish.jersey.ext</groupId>
-    			<artifactId>jersey-spring4</artifactId>
-    			<version>${jersey.version}</version>
-    			<scope>provided</scope>
-		</dependency>
+            <groupId>org.glassfish.jersey.ext</groupId>
+            <artifactId>jersey-spring6</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>

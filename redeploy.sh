@@ -1,5 +1,5 @@
 #!/bin/sh
-AMS_DIR=/home/usama/test
+AMS_DIR=/usr/local/antmedia
 
 set -xe
 
@@ -17,7 +17,9 @@ if [ $OUT -ne 0 ]; then
     exit $OUT
 fi
 
-rm -r $AMS_DIR/plugins/PluginApp*
+if [ -e "$AMS_DIR/plugins/PluginApp*" ]; then
+	rm -r $AMS_DIR/plugins/PluginApp*
+fi
 cp target/PluginApp.jar $AMS_DIR/plugins/
 
 cp target/PluginApp.jar ./dist

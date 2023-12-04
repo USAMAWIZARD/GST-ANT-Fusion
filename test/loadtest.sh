@@ -1,7 +1,7 @@
 #Publish
 for i in {0..100};
 do
-	ffmpeg -stream_loop 12 -re -i ./test.mp4 -c:v copy -c:a aac -f flv "rtmp://localhost/LiveApp/myStream-$i" &
+	ffmpeg -stream_loop 500 -re -i ./test.mp4 -c:v copy -c:a aac -f flv "rtmp://localhost/LiveApp/myStream-$i" &
 done
 
 read -p "Press enter to Play"
