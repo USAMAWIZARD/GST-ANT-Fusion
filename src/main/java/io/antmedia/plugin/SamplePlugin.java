@@ -65,11 +65,6 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 		return selectedMuxAdaptor;
 	}
 
-	public void register(String streamId) {
-		AntMediaApplicationAdapter app = getApplication();
-
-		app.addPacketListener(streamId, packetListener);
-	}
 	public long getLicenseKey(){
 		AntMediaApplicationAdapter app = getApplication();
 		String licence_key = app.getServerSettings().getLicenceKey();
@@ -90,9 +85,6 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 		return app.createCustomBroadcast(streamId);
 	}
 
-	public String getStats() {
-		return "\t" + packetListener.getStats();
-	}
 
 
 	@Override

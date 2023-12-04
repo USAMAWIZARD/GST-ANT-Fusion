@@ -28,8 +28,6 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 		initThread.start();
 	}
 
-	private int packetCount = 0;
-
 	@Override
 	public void writeTrailer(String streamId) {
 		System.out.println("SamplePacketListener.writeTrailer()");
@@ -56,10 +54,6 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 
 	@Override
 	public void setAudioStreamInfo(String streamId, StreamParametersInfo audioStreamInfo) {
-	}
-
-	public String getStats() {
-		return "packets:" + packetCount;
 	}
 
 }

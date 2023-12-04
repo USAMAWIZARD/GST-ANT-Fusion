@@ -60,16 +60,7 @@ public class RestService {
 	protected ServletContext servletContext;
 	Gson gson = new Gson();
 
-	@POST
-	@Path("/register/{streamId}")
-	@Produces(MediaType.APPLICATION_JSON)
-	@Consumes(MediaType.APPLICATION_JSON)
-	public Response register(@PathParam("streamId") String streamId) {
-		SamplePlugin app = getPluginApp();
-		app.register(streamId);
 
-		return Response.status(Status.OK).entity("").build();
-	}
 
 	@POST
 	@Path("/register-pipeline")
