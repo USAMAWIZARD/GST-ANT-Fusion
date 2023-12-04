@@ -436,7 +436,7 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
       char *encode_audio = "";
       if (stream_ctx->audiopar->codec_id != AV_CODEC_ID_AAC)
       {
-        encode_audio = " ! decodebin ! voaacenc  ! ";
+        encode_audio = " ! decodebin ! voaacenc   ";
       }
       common_pipeline = g_strdup_printf(" %s audio. %s  ! muxer. ", common_pipeline, encode_audio);
       free(temp);
