@@ -24,12 +24,10 @@ public static interface JNA_RTSP_SERVER extends Library {
         void call_default_pipeline(String streamid);
 
         interface receiveDataCallback extends Callback {
-            void onJavaCallback(int data);
+            void C_Callback(String streamId, String  roomId , String type , String data );
         }
     
         void registerCallback(receiveDataCallback callback);
-    
-        void javaCallback(int data);
-        
+            
     }
 }

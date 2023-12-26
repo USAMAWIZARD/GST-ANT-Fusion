@@ -7,24 +7,17 @@
 #include <jni.h>
 #include "javaCallback.h"
 #include <stdio.h>
-static Callback callback;
+Callback callback;
+#define TRANSCRIPTION_DATA "caption"
+//typedef void (*Callback)( char* streamId, char*  roomId , char* type , char* data );
 
-typedef void(*onTranscriptionData)(char *streamId, char* data);
 
 extern  bool transcription_data(GstElement *vosk, gchararray result, gpointer user_data) {
     printf("Recognized Speech: %s\n", result);
-    
-    void onTranscriptionData(streamid, data);
-
+    callback(TRANSCRIPTION_DATA, TRANSCRIPTION_DATA ,TRANSCRIPTION_DATA ,TRANSCRIPTION_DATA);
 }
 
 void registerCallback(Callback cb) {
     callback = cb;
 }
 
-void javaCallback(int data) {
-    // Invoke the Java callback
-    if (callback != NULL) {
-        callback(data);
-    }
-}

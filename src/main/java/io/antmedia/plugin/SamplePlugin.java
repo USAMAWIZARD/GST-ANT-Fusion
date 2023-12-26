@@ -44,31 +44,34 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 	private SamplePacketListener packetListener = new SamplePacketListener();
 
 	private ApplicationContext applicationContext;
-
+	
+	NativeInterface.JNA_RTSP_SERVER.receiveDataCallback receiveDataCallback;
 	static int is_init = 0;
 	public SamplePlugin() {
 		if (is_init == 0)
-			call_init_rtsp_server();
+			call_init_server();
 		is_init = 1;
 	}
 
-	static void call_init_rtsp_server() {
+	void call_init_server() {
 
 		Thread initThread = new Thread(() -> JNA_RTSP_SERVER.INSTANCE.init_plugin());
 		
 		initThread.start();
 
-		NativeInterface.JNA_RTSP_SERVER.receiveDataCallback receiveDataCallback = new NativeInterface.JNA_RTSP_SERVER.receiveDataCallback() {
+
+		receiveDataCallback = new NativeInterface.JNA_RTSP_SERVER.receiveDataCallback() {
             @Override
-            public void onJavaCallback(int data) {
-                System.out.println("Received data from C: " + data);
-				System.exit(0);
+            public void C_Callback(String streamId, String  roomId , String type , String data ) {
+                System.out.println("Received data from C: \n" + data);
+				//AntMediaApplicationAdapter app = getApplication();
+
+				//app.sendDataChannelMessage(streamId,data);
             }
         };
     
         NativeInterface.JNA_RTSP_SERVER.INSTANCE.registerCallback(receiveDataCallback);
     
-        NativeInterface.JNA_RTSP_SERVER.INSTANCE.javaCallback(42);
 	}
 
 	@Override

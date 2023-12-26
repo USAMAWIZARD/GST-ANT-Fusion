@@ -1,9 +1,8 @@
-// MyLibrary.h
 #ifndef JAVA_CALLBACK_H
 #define JAVA_CALLBACK_H
 
 // Function pointer type for the callback
-typedef void (*Callback)(int);
+typedef void (*Callback)( char* streamId, char*  roomId , char* type , char* data );
 
 // Callback registration function
 void registerCallback(Callback cb);
