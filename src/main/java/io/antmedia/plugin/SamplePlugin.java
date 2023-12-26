@@ -7,6 +7,9 @@ import org.bytedeco.ffmpeg.avcodec.AVCodecParameters;
 import org.bytedeco.ffmpeg.avcodec.AVPacket;
 import org.bytedeco.ffmpeg.global.avcodec;
 import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.javacpp.FunctionPointer;
+import org.bytedeco.javacpp.Loader;
+import org.bytedeco.javacpp.annotation.Name;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
@@ -39,13 +42,40 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 
 	private Vertx vertx;
 	private SamplePacketListener packetListener = new SamplePacketListener();
+
 	private ApplicationContext applicationContext;
+
+	static int is_init = 0;
+	public SamplePlugin() {
+		if (is_init == 0)
+			call_init_rtsp_server();
+		is_init = 1;
+	}
+
+	static void call_init_rtsp_server() {
+
+		Thread initThread = new Thread(() -> JNA_RTSP_SERVER.INSTANCE.init_plugin());
+		
+		initThread.start();
+
+		NativeInterface.JNA_RTSP_SERVER.receiveDataCallback receiveDataCallback = new NativeInterface.JNA_RTSP_SERVER.receiveDataCallback() {
+            @Override
+            public void onJavaCallback(int data) {
+                System.out.println("Received data from C: " + data);
+				System.exit(0);
+            }
+        };
+    
+        NativeInterface.JNA_RTSP_SERVER.INSTANCE.registerCallback(receiveDataCallback);
+    
+        NativeInterface.JNA_RTSP_SERVER.INSTANCE.javaCallback(42);
+	}
 
 	@Override
 	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
 		this.applicationContext = applicationContext;
 		vertx = (Vertx) applicationContext.getBean("vertxCore");
-
+		
 		AntMediaApplicationAdapter app = getApplication();
 		app.addStreamListener(this);
 	}
@@ -65,27 +95,14 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 		return selectedMuxAdaptor;
 	}
 
-	public long getLicenseKey(){
-		AntMediaApplicationAdapter app = getApplication();
-		String licence_key = app.getServerSettings().getLicenceKey();
-
-		AVPacket packet = avcodec.av_packet_alloc();
-		BytePointer key = new BytePointer(licence_key);
-		packet.data(key);
-		NativeInterface.JNA_RTSP_SERVER.INSTANCE.onPacket(packet.address(),"av_packet_init_video",2);
-		return packet.address();
-	}
-
 	public AntMediaApplicationAdapter getApplication() {
 		return (AntMediaApplicationAdapter) applicationContext.getBean(AntMediaApplicationAdapter.BEAN_NAME);
 	}
 
-	public IFrameListener createCustomBroadcast(String streamId) {
+	public IFrameListener createCustomBroadcast(String streamId) {	
 		AntMediaApplicationAdapter app = getApplication();
 		return app.createCustomBroadcast(streamId);
 	}
-
-
 
 	@Override
 	public void streamStarted(String streamId) {
@@ -110,21 +127,23 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 				vtimebase = Muxer.getVideoTimeBase().address();
 			}
 			System.out.println("Video Enabled : "+ Muxer.isEnableVideo() +" Audio Enabled : "+ Muxer.isEnableAudio());
-			int is_video = videoEnabled ? 1 : 0;
+			int is_video = videoEnabled ? 0 : 0;
 			int is_audio = audioEnabled ? 1 : 0;
 			NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
 			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, videoPar, vtimebase, is_video, 0);
 			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, audioPar, atimebase, is_audio, 1);
 			NativeInterface.JNA_RTSP_SERVER.INSTANCE.call_default_pipeline(streamId);
+			Muxer.setEnableVideo(false);
 
 			app.addPacketListener(streamId, packetListener);
-		}
+		}  
 	}
 
 	@Override
 	public void streamFinished(String streamId) {
 		logger.info("*************** Stream Finished: {} ***************", streamId);
 		NativeInterface.JNA_RTSP_SERVER.INSTANCE.unregister_stream(streamId);
+		
 	}
 
 	@Override
@@ -135,6 +154,11 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 	@Override
 	public void leftTheRoom(String roomId, String streamId) {
 		logger.info("*************** Stream Id:{} left the room:{} ***************", streamId, roomId);
+	}
+	public static void callback_static(){
+		System.out.println("KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK\n\n\nn\n\n\nKKK");
+
+	//	System.exit(0);
 	}
 
 }

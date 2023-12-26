@@ -102,6 +102,17 @@ ttp://maven.apache.org/maven-v4_0_0.xsd">
 					</execution>
 				</executions>
 			</plugin>
+		
+		
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.2.1</version>
+				<configuration>
+					<mainClass>com.example.Main</mainClass>
+				</configuration>
+			</plugin>
+		
 			<plugin>
 				<artifactId>maven-jar-plugin</artifactId>
 			</plugin>
@@ -141,15 +152,7 @@ ttp://maven.apache.org/maven-v4_0_0.xsd">
                     </execution>
                 </executions>
             </plugin>
-			<plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
+
 			<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>

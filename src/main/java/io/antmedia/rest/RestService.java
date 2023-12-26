@@ -36,10 +36,10 @@ class RequestPipeline extends NativeInterface {
 	@ApiModelProperty(value = "Stream Id to register")
 	public String streamId;
 
-	@ApiModelProperty(value = "pipeline type Gstreamer/RTP/FFmpeg")
+	@ApiModelProperty(value = "pipeline type Gstreamer/RTP_OUT/RTSP_OUT/RTMP_OUT/GSTREAMER/TRANSCRIBE/FFmpeg")
 	public String pipeline_type;
 
-	@ApiModelProperty(value = "actual gstremaer of ffmpeg pipelien Pass your own pipeline", required = false)
+	@ApiModelProperty(value = "actual gstreamer of ffmpeg pipelien Pass your own pipeline", required = false)
 	public String pipeline;
 
 	@ApiModelProperty(value = "protocol", required = false)
@@ -50,6 +50,9 @@ class RequestPipeline extends NativeInterface {
 
 	@ApiModelProperty(value = "host name", required = false)
 	public String hostname;
+
+	@ApiModelProperty(value = "language Language which user is speaking right now", required = false)
+	public String language;
 }
 
 @Component
@@ -59,8 +62,6 @@ public class RestService {
 	@Context
 	protected ServletContext servletContext;
 	Gson gson = new Gson();
-
-
 
 	@POST
 	@Path("/register-pipeline")
@@ -106,12 +107,18 @@ public class RestService {
 				pipeline_info.protocol = Request.protocol;
 				break;
 			}
-			
+			case "TRANSCRIBE": {
+				if (Request.language == null) 
+					return Response.status(Status.OK)
+							.entity(new Result(false, "Please Specify the Language you are speaking "))
+							.build();
+				pipeline_info.language = Request.language;
+			}
+			break;
 			default:
 				return Response.status(Status.OK)
 						.entity(new Result(false, "Please Specify a valid pipeline type"))
 						.build();
-
 		}
 
 		String err = NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_pipeline(pipeline_info);

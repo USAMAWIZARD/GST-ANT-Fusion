@@ -7,26 +7,18 @@ import io.antmedia.plugin.api.IPacketListener;
 import io.antmedia.plugin.api.StreamParametersInfo;
 import io.antmedia.app.NativeInterface.JNA_RTSP_SERVER;
 import io.antmedia.app.NativeInterface;
+import org.bytedeco.javacpp.FunctionPointer;
+import org.bytedeco.javacpp.annotation.Name;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Timer;
 import java.util.TimerTask;
-	
-public class SamplePacketListener extends NativeInterface implements IPacketListener {
-	static int is_init = 0;
-	static int count=0;
-	public SamplePacketListener() {
-		if (is_init == 0)
-			call_init_rtsp_server();
-		is_init = 1;
-	}
 
-	static void call_init_rtsp_server() {
-		Thread initThread = new Thread(() -> JNA_RTSP_SERVER.INSTANCE.init_plugin());
-		initThread.start();
-	}
+public class SamplePacketListener extends NativeInterface implements IPacketListener {
+
 
 	@Override
 	public void writeTrailer(String streamId) {
@@ -55,5 +47,6 @@ public class SamplePacketListener extends NativeInterface implements IPacketList
 	@Override
 	public void setAudioStreamInfo(String streamId, StreamParametersInfo audioStreamInfo) {
 	}
+
 
 }

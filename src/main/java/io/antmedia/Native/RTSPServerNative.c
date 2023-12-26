@@ -4,7 +4,7 @@
 #define RTP_OUT "RTP_OUT"
 #define SRT_OUT "SRT_OUT"
 #define PIPE_RTMP "RTMP_OUT"
-
+#define TRANSCRIBE "TRANSCRIBE"
 #define PACKET_TYPE_VIDEO 0
 #define PACKET_TYPE_AUDIO 1
 
@@ -26,6 +26,9 @@
 #include <gstreamer-1.0/gst/libav/gstavutils.h>
 #include <stdbool.h>
 #include <libsoup/soup.h>
+#include "./transcriber.c"
+#include <jni.h>
+#include <ctype.h>
 
 #define AV_ERROR_BUFFER_SIZE 512
 
@@ -60,7 +63,7 @@ typedef struct
   char *video_parser;
   char *audio_parser;
   char *rtsp_mountpoint;
-  AVRational *timebase;
+  AVRational timebase;
   GstElement *pipeline;
   volatile gboolean pipeline_initialized;
   AVBSFContext *bsfContext;
@@ -71,6 +74,7 @@ enum PIPELINE_TYPE
   PIPELINE_TYPE_GSTREAMER,
   PIPELINE_TYPE_RTSP,
   PIPELINE_TYPE_FFMPEG,
+  PIPELINE_TYPE_TRANSCRIBER,
   PIPELINE_TYPE_ERROR,
 };
 typedef struct
@@ -88,11 +92,13 @@ volatile int stream_count;
 void onPacket(AVPacket *pkt, gchar *streamId, int pktType);
 void init_gst_and_RTSP();
 char *register_pipeline(DataMaper *pipeline_info);
-char *add_gstreamer_pipeline(char *streamId, char *pipeline);
+char *add_gstreamer_pipeline(char *streamId, char *pipeline,gboolean transcribe);
 char *add_rtsp_pipeline(gchar *streamId, char *pipeline, char *protocol);
 void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rational, int is_stream_enabled, int stream_type);
 int init_Codec(StreamMap *stream);
 AVBitStreamFilter *return_filter_and_setup_parser_and_also_setup_payloader(StreamMap *stream, int codecId);
+extern bool transcription_data(GstElement *vosk, gchararray result, gpointer user_data);
+
 
 int is_digits(const char *s)
 {
@@ -157,6 +163,8 @@ int get_config()
   {
     config.rtmp_port = rtmp_port;
   }
+  g_key_file_free(keyfile);
+
   printf("----------\n");
   printf("rtsp port: %s\n", config.rtsp_port);
   printf("rtmp port: %s\n", config.rtmp_port);
@@ -179,7 +187,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
       {
         if (ctx->video_caps == NULL && ctx->videoappsrc == NULL)
         {
-          printf("video caps are null\n");
+          //printf("video caps are null\n");
           return;
         }
         if (ctx->bsfContext == NULL)
@@ -210,26 +218,26 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
 
         pkt = ctx->video_avpkt; // annexedb
 
-        // timestamp related stuff
-
-        // int timestamp = gst_ffmpeg_time_ff_to_gst(pkt->pts, *( ctx->timebase ));
-        // printf("%d\n",pkt->duration);
-        // printf("%d\n",pkt->duration);
-        // int duration = gst_ffmpeg_time_ff_to_gst(pkt->duration, *( ctx->timebase ));
-        // printf("%d\n",duration);
-
-        // if (G_UNLIKELY(duration))
-        //{
-        //     printf( "invalid buffer duration, setting to NONE\n");
-        //   duration = GST_CLOCK_TIME_NONE;
-        // }
-
-        // GST_BUFFER_TIMESTAMP(buffer) = timestamp;
-        // GST_BUFFER_DURATION(buffer) = duration;
-
         GstBuffer *buffer = gst_buffer_new_and_alloc(pkt->size);
         uint8_t *data = (uint8_t *)pkt->data;
         gst_buffer_fill(buffer, 0, data, pkt->size);
+
+        // if (G_UNLIKELY(pkt->pts < 0))
+        // {
+        //   g_print("Warning: Packet contains negative pts. Pts is set to 0.\n");
+        //   pkt->pts = 0;
+        // }
+
+        // GstClockTime timestamp = gst_ffmpeg_time_ff_to_gst(pkt->pts, ctx->timebase);
+        // GstClockTime duration = gst_ffmpeg_time_ff_to_gst(pkt->duration, ctx->timebase);
+        // if (G_UNLIKELY(!duration))
+        // {
+        //   g_print("Warning: duration is GST_CLOCK_TIME_NONE.\n");
+        //   duration = GST_CLOCK_TIME_NONE;
+        // }
+        // GST_BUFFER_TIMESTAMP(buffer) = timestamp;
+        // GST_BUFFER_DURATION(buffer) = duration;
+
         g_assert(ctx->videoappsrc);
         gst_app_src_push_buffer((GstAppSrc *)ctx->videoappsrc, buffer);
         // printf("pushing video packets to vid sink\n");
@@ -253,7 +261,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
       default:
       {
         printf("UNSUPPORTED MEDIA TYPE :%d\n", pktType);
-        //g_assert(0 && "UNSUPPORTED MEDIA TYPE");
+        // g_assert(0 && "UNSUPPORTED MEDIA TYPE");
         return;
       }
       }
@@ -264,40 +272,42 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
     printf("packet recieved for unregisted stream\n");
   }
 }
-
+void set_appsrc(StreamMap *ctx, gchar *streamId)
+{
+  GstElement *videoappsrc, *audioappsrc;
+  if(ctx->pipeline==NULL){
+    printf("cannot set sources because pipeline is null");
+    return;
+  }
+  char app_src[128];
+  if (ctx->video_caps != NULL)
+  {
+    sprintf(app_src, "video_%s", (char *)streamId);
+    videoappsrc = gst_bin_get_by_name_recurse_up(GST_BIN(ctx->pipeline), (gchar *)app_src);
+    ctx->videoappsrc = (GstAppSrc *)videoappsrc;
+    g_assert(videoappsrc);
+  }
+  if (ctx->audio_caps != NULL)
+  {
+    sprintf(app_src, "audio_%s", (char *)streamId);
+    audioappsrc = gst_bin_get_by_name_recurse_up(GST_BIN(ctx->pipeline), (gchar *)app_src);
+    ctx->audioappsrc = (GstAppSrc *)audioappsrc;
+    g_assert(audioappsrc);
+  }
+  ctx->pipeline_initialized = 1;
+}
 static void media_configure(GstRTSPMediaFactory *factory, GstRTSPMedia *media, gpointer streamId)
 {
 
   if (g_hash_table_contains(hash_table, streamId))
   {
     StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, (gchar *)streamId);
-
     stream_count += 1;
     g_print("-----------play-request-------------( %s )    %d\n", (char *)streamId, stream_count);
-    GstElement *element, *videoappsrc, *audioappsrc;
-    element = gst_rtsp_media_get_element(media);
-    ctx->pipeline = element;
-    //GST_DEBUG_BIN_TO_DOT_FILE(element, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");
-
-    char app_src[128];
-    if (ctx->video_caps != NULL)
-    {
-      sprintf(app_src, "video_%s", (char *)streamId);
-      videoappsrc = gst_bin_get_by_name_recurse_up(GST_BIN(element), (gchar *)app_src);
-      ctx->videoappsrc = (GstAppSrc *)videoappsrc;
-      g_assert(videoappsrc);
-    }
-    if (ctx->audio_caps != NULL)
-    {
-      sprintf(app_src, "audio_%s", (char *)streamId);
-      audioappsrc = gst_bin_get_by_name_recurse_up(GST_BIN(element), (gchar *)app_src);
-      ctx->audioappsrc = (GstAppSrc *)audioappsrc;
-      g_assert(audioappsrc);
-    }
-
-    //printf("initializing video app src\n");
-  
-    ctx->pipeline_initialized = 1;
+    ctx->pipeline = gst_rtsp_media_get_element(media);
+    // GST_DEBUG_BIN_TO_DOT_FILE(element, GST_DEBUG_GRAPH_SHOW_ALL, "pipeline");
+    set_appsrc(ctx, (char *)streamId);
+      // printf("initializing video app src\n");
   }
   else
   {
@@ -325,6 +335,7 @@ char *strcat_dyn(char *str1, char *str2)
   strcpy(str + len1, str2);
   return str;
 }
+
 void parse_codec(StreamMap *ctx)
 {
   char *str_caps;
@@ -338,7 +349,7 @@ void parse_codec(StreamMap *ctx)
 
     codec_context = avcodec_alloc_context3(decoder);
     if (avcodec_parameters_to_context(codec_context, ctx->bsfContext->par_out) < 0)
-    g_assert(1 && "parameter to context failed");  // possible segfault
+      g_assert(1 && "parameter to context failed"); // possible segfault
     int extradata_size = codec_context->extradata_size;
     codec_context->extradata_size = 0;
     gst_ffmpeg_codecid_to_caps(ctx->videopar->codec_id, codec_context, 1, &str_caps);
@@ -390,7 +401,6 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
   {
     *pipeline_out = strcat_dyn(common_pipeline, pipeline);
     free(common_pipeline);
-    printf("pipeline generated :\n%s\n", *pipeline_out);
     return PIPELINE_TYPE_GSTREAMER;
   }
   else if (g_strcmp0(pipeline_type, PIPE_RTSP) == 0)
@@ -503,6 +513,16 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
     *pipeline_out = common_pipeline;
     return PIPELINE_TYPE_GSTREAMER;
   }
+  else if (g_strcmp0(pipeline_type, TRANSCRIBE) == 0)
+  {
+    if (stream_ctx->audio_caps != NULL)
+    {
+      common_pipeline = g_strdup_printf("%s audio.  ! decodebin ! audioconvert ! audioresample ! vosk name=transcriber use-signals=true speech-model=/home/usama/vosk-model-en-us-0.22/ ! fakesink  ", common_pipeline);
+    }
+    *pipeline_out = strdup(common_pipeline);
+    free(common_pipeline);
+    return PIPELINE_TYPE_TRANSCRIBER;
+  }
   else if (g_strcmp0(pipeline_type, PIPE_FFMPEG) == 0)
   {
     // invalid option
@@ -519,9 +539,9 @@ enum PIPELINE_TYPE generate_gst_pipeline(char **pipeline_out, StreamMap *stream_
 
 char *register_pipeline(DataMaper *pipeline_info)
 {
-  // register appropriate pipline
+  // register appropriate pipeline
   char *streamId = strdup(pipeline_info->streamId);
-  printf("called register pipline\n");
+  printf("called register pipeline\n");
 
   if (g_hash_table_contains(hash_table, streamId))
   {
@@ -540,14 +560,22 @@ char *register_pipeline(DataMaper *pipeline_info)
     {
     case PIPELINE_TYPE_GSTREAMER:
     {
-      char *err = add_gstreamer_pipeline(streamId, pipeline_out);
+      char *err = add_gstreamer_pipeline(streamId, pipeline_out,0);
       return err;
     }
+    break;
     case PIPELINE_TYPE_RTSP:
     {
       char *err = add_rtsp_pipeline(streamId, pipeline_out, pipeline_info->protocol);
       return err;
     }
+    break;
+    case PIPELINE_TYPE_TRANSCRIBER:
+    {
+      char *err = add_gstreamer_pipeline(streamId, pipeline_out, 1);
+      return err;
+    }
+    break;
     case PIPELINE_TYPE_ERROR:
     {
       char *err = pipeline_out;
@@ -559,8 +587,8 @@ char *register_pipeline(DataMaper *pipeline_info)
       {
         return pipeline_out;
       }
-      break;
     }
+    break;
     case PIPELINE_TYPE_FFMPEG:
     // fallthrough
     default:
@@ -680,7 +708,7 @@ void init_gst_and_RTSP()
   gst_init(NULL, NULL);
 
   loop = g_main_loop_new(NULL, FALSE);
-  if (1)
+  if (1) // todo add option to disable rtsp
   {
     server = gst_rtsp_server_new();
     g_assert(server);
@@ -698,7 +726,7 @@ void init_gst_and_RTSP()
   g_main_loop_run(loop);
 }
 
-void init_plugin()
+void init_plugin(void *ptr)
 {
   get_config();
   setenv("GST_DEBUG", "3", 1);
@@ -708,7 +736,10 @@ void init_plugin()
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
   g_hash_table_insert(hash_table, "", "");
   init_gst_and_RTSP();
+
+
 }
+
 static void
 media_constructed(GstRTSPMediaFactory *factory, GstRTSPMedia *media)
 {
@@ -782,7 +813,7 @@ char *add_rtsp_pipeline(gchar *streamId, char *pipeline, char *protocol)
   return 0;
 }
 
-char *add_gstreamer_pipeline(char *streamId, char *pipeline)
+char *add_gstreamer_pipeline(char *streamId, char *pipeline, gboolean transcribe)
 {
   gchar pipe[1200];
   gchar mountpoint[30];
@@ -793,6 +824,12 @@ char *add_gstreamer_pipeline(char *streamId, char *pipeline)
     ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
 
     ctx->pipeline = gst_parse_launch(pipeline, &err);
+    if (transcribe)
+    {
+      GstElement *vosk = gst_bin_get_by_name(GST_BIN(ctx->pipeline), "transcriber");
+      if (vosk != NULL)
+        g_signal_connect(vosk, "result", G_CALLBACK(transcription_data), streamId);
+    }
     if (err != NULL)
     {
       printf("%s\n", err->message);
@@ -801,14 +838,8 @@ char *add_gstreamer_pipeline(char *streamId, char *pipeline)
       return error;
     }
     gst_element_set_state(ctx->pipeline, GST_STATE_PLAYING);
+    set_appsrc(ctx, streamId);
 
-    char appsrc[256];
-    sprintf(appsrc, "video_%s", streamId);
-    ctx->videoappsrc = (GstAppSrc *)gst_bin_get_by_name((GstBin *)ctx->pipeline, appsrc);
-
-    sprintf(appsrc, "audio_%s", (char *)streamId);
-    ctx->audioappsrc = gst_bin_get_by_name_recurse_up((GstBin *)ctx->pipeline, appsrc);
-    ctx->pipeline_initialized = 1;
     return 0;
   }
   else
@@ -834,6 +865,7 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
   }
   AVCodecParameters *params = avcodec_parameters_alloc();
   avcodec_parameters_copy(params, codecPar);
+
   codecPar = params;
   printf("Stream Type: %s is_Enabled: %s\n", stream_type == 0 ? "video" : "audio", is_stream_enabled == 1 ? "true" : "false");
 
@@ -856,7 +888,7 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
       printf("------initializing video filters--------\n");
       printf("setting Stream info VIDEO %s Codecid %d \n", streamId, codecPar->codec_id);
       ctx->videopar = codecPar;
-      ctx->timebase = rational;
+      ctx->timebase = *rational;
       init_Codec(ctx);
     }
     else if (stream_type == PACKET_TYPE_AUDIO)
@@ -865,13 +897,12 @@ void setStreamInfo(char *streamId, AVCodecParameters *codecPar, AVRational *rati
       printf("------initializing audio filters--------\n");
       return_filter_and_setup_parser_and_also_setup_payloader(ctx, ctx->audiopar->codec_id);
     }
-
-    free(streamId);
   }
   else
   {
     printf("could not set the streaminfo ID does not exist\n");
   }
+  free(streamId);
 }
 void register_stream(char *streamId, AVCodecParameters audiopir, AVCodecParameters videopir)
 {
@@ -939,7 +970,7 @@ void unregister_stream(char *streamId) // TODO : Free allocated resources
   }
   else
   {
-    printf("cannot unregistersream does not exist %s", streamid_d);
+    printf("cannot unregister stream does not exist %s", streamid_d);
   }
   free(streamid_d);
   pthread_mutex_unlock(&hashtable_mutex);

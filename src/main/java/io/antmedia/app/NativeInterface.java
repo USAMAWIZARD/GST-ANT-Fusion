@@ -1,17 +1,8 @@
 package io.antmedia.app;
 
-import org.bytedeco.ffmpeg.avcodec.AVCodecParameters;
-import org.bytedeco.ffmpeg.avutil.AVRational;
-
 import com.sun.jna.Library;
 import com.sun.jna.Native;
-import com.sun.jna.Pointer;
-import com.sun.jna.Structure.*;
-import io.antmedia.app.DataMaper;                                                                      
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import com.sun.jna.Callback;
 
 public class NativeInterface {
 public static interface JNA_RTSP_SERVER extends Library {
@@ -31,5 +22,14 @@ public static interface JNA_RTSP_SERVER extends Library {
         void setStreamInfo(String streamId, long codecPar ,  long rational , int isEnabled,int streamType ); // pkt codecType 0=video codecType 1=audio
 
         void call_default_pipeline(String streamid);
+
+        interface receiveDataCallback extends Callback {
+            void onJavaCallback(int data);
+        }
+    
+        void registerCallback(receiveDataCallback callback);
+    
+        void javaCallback(int data);
+        
     }
 }
