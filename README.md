@@ -18,11 +18,11 @@
 
 <ul>
   
-  <li><a href="https://github.com/USAMAWIZARD/GST-ANT-Fusion/releases/tag/0.1"> Download Plugin</li>
-  <li>Unzip the file and run the install script to install the plugin</li>
+  <li><a href="https://github.com/USAMAWIZARD/GST-ANT-Fusion/releases/"> Download Plugin dist.zip file according to your Ant Media Version</li>
+  <li>Unzip dist.zip file and run the install script to install the plugin</li>
 </ul>
-
-<pre><code>sudo sh ./gst_plugin_install.sh</code></pre>
+<pre><code>sudo sh gst_plugin_install.sh</code></pre>
+<pre><code>sudo service antmedia restart</code></pre>
 
 <p>The plugin comes with <a href="https://antmedia.io/how-to-live-stream-rtsp-output-with-ant-media-server/">RTSP, RTMP, and RTP output</a> capabilities by default. Also, you can register any Gstreamer pipeline you want by simply calling some REST endpoints.</p>
 
