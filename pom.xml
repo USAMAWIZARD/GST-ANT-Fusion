@@ -61,7 +61,7 @@ ttp://maven.apache.org/maven-v4_0_0.xsd">
 		</repository>
 	</distributionManagement>
 	<build>
-		<finalName>PluginApp</finalName>
+		<finalName>GstAntFusion</finalName>
 		<testSourceDirectory>src/test/java</testSourceDirectory>
 		<plugins>
 			<plugin>
@@ -317,7 +317,7 @@ ttp://maven.apache.org/maven-v4_0_0.xsd">
 		
 	
  </dependencies>
-	<description>PluginApp for Ant Media Server</description>
+	<description>Gstreamer Plugin for Ant Media Server</description>
 	<organization>
 		<name>Ant Media</name>
 		<url>http://antmedia.io</url>

@@ -9,7 +9,8 @@ public class NativeInterface {
 
 public static interface JNA_RTSP_SERVER extends Library {
 
-        JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native/libGstRTSP.so", JNA_RTSP_SERVER.class);
+    
+        JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native/libGstAntFusion.so", JNA_RTSP_SERVER.class);
 
         void onPacket(long pktPointer, String streamId, int pktType);  // pkt type 0= video 1=audio 
 

@@ -5,9 +5,12 @@
 #include <strings.h>
 #include <stdbool.h>
 #include <jni.h>
-#include "javaCallback.h"
 #include <stdio.h>
 #include <json-glib/json-glib.h>
+
+typedef void (*Callback)( char* streamId, char*  roomId , char* data );
+void registerCallback(Callback cb);
+
 Callback callback;
 #define TRANSCRIPTION_DATA "caption"
 

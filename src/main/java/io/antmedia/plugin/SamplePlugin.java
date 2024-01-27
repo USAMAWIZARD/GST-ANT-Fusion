@@ -65,7 +65,7 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
             public void C_Callback(String streamId, String roomId , String data ) {
 				AntMediaApplicationAdapter app = getApplication();
 
-				System.out.println(streamId  +"Received data from C: \n" + data + roomId);
+				//System.out.println(streamId  +"Received data from C: \n" + data + roomId);
 				app.sendDataChannelMessage(streamId, data);
             }
         };
