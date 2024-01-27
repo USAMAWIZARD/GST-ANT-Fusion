@@ -5,6 +5,8 @@ import com.sun.jna.Native;
 import com.sun.jna.Callback;
 
 public class NativeInterface {
+
+
 public static interface JNA_RTSP_SERVER extends Library {
 
         JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native/libGstRTSP.so", JNA_RTSP_SERVER.class);
@@ -24,10 +26,12 @@ public static interface JNA_RTSP_SERVER extends Library {
         void call_default_pipeline(String streamid);
 
         interface receiveDataCallback extends Callback {
-            void C_Callback(String streamId, String  roomId , String type , String data );
+            void C_Callback(String streamId, String  roomId , String data );
         }
     
         void registerCallback(receiveDataCallback callback);
-            
-    }
+        void joinedTheRoom(String roomId, String streamId);
+        void leftTheRoom(String roomId, String streamId);
+
+        }
 }

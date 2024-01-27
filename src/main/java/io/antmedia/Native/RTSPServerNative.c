@@ -65,6 +65,7 @@ typedef struct
   char *rtsp_mountpoint;
   AVRational timebase;
   GstElement *pipeline;
+  char *roomid;
   volatile gboolean pipeline_initialized;
   AVBSFContext *bsfContext;
 } volatile StreamMap;
@@ -269,7 +270,7 @@ void onPacket(AVPacket *pkt, gchar *streamId, int pktType)
   }
   else
   {
-    printf("packet recieved for unregisted stream\n");
+   // printf("packet recieved for unregisted stream\n");
   }
 }
 void set_appsrc(StreamMap *ctx, gchar *streamId)
@@ -550,6 +551,8 @@ char *register_pipeline(DataMaper *pipeline_info)
     char *pipeline_out = NULL;
 
     StreamMap *stream_ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamId);
+    if(stream_ctx->pipeline_initialized)
+    release();
     enum PIPELINE_TYPE type = generate_gst_pipeline(&pipeline_out, stream_ctx, pipeline_info);
 
     if (type != PIPELINE_TYPE_ERROR)
@@ -736,8 +739,6 @@ void init_plugin(void *ptr)
   hash_table = g_hash_table_new(g_str_hash, g_str_equal);
   g_hash_table_insert(hash_table, "", "");
   init_gst_and_RTSP();
-
-
 }
 
 static void
@@ -911,6 +912,20 @@ void register_stream(char *streamId, AVCodecParameters audiopir, AVCodecParamete
   ctx->pipeline_initialized = 0;
   g_hash_table_insert(hash_table, strdup(streamId), ctx);
 }
+
+void joinedTheRoom(char* roomid,char* streamid){
+    StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamid);
+    if(ctx != NULL){
+        ctx->roomid = strdup(roomid);
+    }
+}
+void leftTheRoom(char* roomid,char* streamid){
+    StreamMap *ctx = (StreamMap *)g_hash_table_lookup(hash_table, streamid);
+    if(ctx != NULL){
+        ctx->roomid = NULL;
+    }
+}
+
 void call_default_pipeline(char *streamId)
 {
 
@@ -948,9 +963,9 @@ void unregister_stream(char *streamId) // TODO : Free allocated resources
     {
       gst_element_set_state(ctx->pipeline, GST_STATE_NULL);
       ctx->pipeline = NULL;
-      printf("unrefing pipelien(%s)\n", streamid_d);
+      printf("unrefing pipeline (%s)\n", streamid_d);
       gst_object_unref(ctx->pipeline);
-      printf("seted pipelien to null(%s)\n", streamid_d);
+      printf("seted pipeline to null(%s)\n", streamid_d);
       if (ctx->rtsp_mountpoint != NULL)
       {
         gst_rtsp_mount_points_remove_factory(mounts, ctx->rtsp_mountpoint);

@@ -62,11 +62,11 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 
 		receiveDataCallback = new NativeInterface.JNA_RTSP_SERVER.receiveDataCallback() {
             @Override
-            public void C_Callback(String streamId, String  roomId , String type , String data ) {
-                System.out.println("Received data from C: \n" + data);
-				//AntMediaApplicationAdapter app = getApplication();
+            public void C_Callback(String streamId, String roomId , String data ) {
+				AntMediaApplicationAdapter app = getApplication();
 
-				//app.sendDataChannelMessage(streamId,data);
+				System.out.println(streamId  +"Received data from C: \n" + data + roomId);
+				app.sendDataChannelMessage(streamId, data);
             }
         };
     
@@ -132,36 +132,32 @@ public class SamplePlugin extends NativeInterface implements ApplicationContextA
 			System.out.println("Video Enabled : "+ Muxer.isEnableVideo() +" Audio Enabled : "+ Muxer.isEnableAudio());
 			int is_video = videoEnabled ? 0 : 0;
 			int is_audio = audioEnabled ? 1 : 0;
-			NativeInterface.JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
-			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, videoPar, vtimebase, is_video, 0);
-			NativeInterface.JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, audioPar, atimebase, is_audio, 1);
-			NativeInterface.JNA_RTSP_SERVER.INSTANCE.call_default_pipeline(streamId);
-			Muxer.setEnableVideo(false);
-
+			JNA_RTSP_SERVER.INSTANCE.register_stream(streamId);
+			JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, videoPar, vtimebase, is_video, 0);
+			JNA_RTSP_SERVER.INSTANCE.setStreamInfo(streamId, audioPar, atimebase, is_audio, 1);
+			JNA_RTSP_SERVER.INSTANCE.call_default_pipeline(streamId);
 			app.addPacketListener(streamId, packetListener);
 		}  
 	}
 
+
 	@Override
 	public void streamFinished(String streamId) {
 		logger.info("*************** Stream Finished: {} ***************", streamId);
-		NativeInterface.JNA_RTSP_SERVER.INSTANCE.unregister_stream(streamId);
+		JNA_RTSP_SERVER.INSTANCE.unregister_stream(streamId);
 		
 	}
 
 	@Override
 	public void joinedTheRoom(String roomId, String streamId) {
+		JNA_RTSP_SERVER.INSTANCE.joinedTheRoom(roomId, streamId);
 		logger.info("*************** Stream Id:{} joined the room:{} ***************", streamId, roomId);
 	}
 
 	@Override
 	public void leftTheRoom(String roomId, String streamId) {
+		JNA_RTSP_SERVER.INSTANCE.leftTheRoom(roomId, streamId);
 		logger.info("*************** Stream Id:{} left the room:{} ***************", streamId, roomId);
-	}
-	public static void callback_static(){
-		System.out.println("KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK\n\n\nn\n\n\nKKK");
-
-	//	System.exit(0);
 	}
 
 }

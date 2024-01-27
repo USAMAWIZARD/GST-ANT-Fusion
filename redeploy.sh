@@ -1,12 +1,13 @@
 #!/bin/sh
-AMS_DIR=/usr/local/antmedia
+#AMS_DIR=/usr/local/antmedia
+AMS_DIR=/home/usama/Music/antmedia/
 JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 set -xe
 
 mvn clean install -Dmaven.javadoc.skip=true -Dmaven.test.skip=true -Dgpg.skip=true
 
 #gcc ./gst-libav/build/ext/libav/libgstlibav.so.p/* -shared -fPIC -o $AMS_DIR/lib/native/libGstRTSP.so src/main/java/io/antmedia/Native/RTSPServerNative.c   -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0 libsoup-2.4 ` -lavcodec -lpthread  
-gcc ./gst-libav/build/ext/libav/libgstlibav.so.p/* -shared -fPIC -o $AMS_DIR/lib/native/libGstRTSP.so src/main/java/io/antmedia/Native/RTSPServerNative.c   -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0 libsoup-2.4 ` -lavcodec -lpthread 
+gcc ./gst-libav/build/ext/libav/libgstlibav.so.p/* -shared -fPIC -o $AMS_DIR/lib/native/libGstRTSP.so src/main/java/io/antmedia/Native/RTSPServerNative.c   -I"$JAVA_HOME/include" -I"$JAVA_HOME/include/linux" `pkg-config --cflags --libs gstreamer-1.0 gstreamer-rtsp-server-1.0 libsoup-2.4 json-glib-1.0 ` -lavcodec -lpthread
 
 #scp -i /home/usama/Desktop/aws/ovh/amstest.pem   $AMS_DIRplugins/PluginApp.jar      ubuntu@ec2-3-110-204-50.ap-south-1.compute.amazonaws.com:$AMS_DIRplugins/
 #scp -i /home/usama/Desktop/aws/ovh/amstest.pem   $AMS_DIRlib/native/libGstRTSP.so   ubuntu@ec2-3-110-204-50.ap-south-1.compute.amazonaws.com:$AMS_DIRlib/native/
