@@ -1,22 +1,16 @@
 package io.antmedia.app;
 
-import org.bytedeco.ffmpeg.avcodec.AVCodecParameters;
-import org.bytedeco.ffmpeg.avutil.AVRational;
-
 import com.sun.jna.Library;
 import com.sun.jna.Native;
-import com.sun.jna.Pointer;
-import com.sun.jna.Structure.*;
-import io.antmedia.app.DataMaper;                                                                      
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import com.sun.jna.Callback;
 
 public class NativeInterface {
+
+
 public static interface JNA_RTSP_SERVER extends Library {
 
-        JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native/libGstRTSP.so", JNA_RTSP_SERVER.class);
+    
+        JNA_RTSP_SERVER INSTANCE = Native.load("./lib/native/libGstAntFusion.so", JNA_RTSP_SERVER.class);
 
         void onPacket(long pktPointer, String streamId, int pktType);  // pkt type 0= video 1=audio 
 
@@ -31,5 +25,14 @@ public static interface JNA_RTSP_SERVER extends Library {
         void setStreamInfo(String streamId, long codecPar ,  long rational , int isEnabled,int streamType ); // pkt codecType 0=video codecType 1=audio
 
         void call_default_pipeline(String streamid);
-    }
+
+        interface receiveDataCallback extends Callback {
+            void C_Callback(String streamId, String  roomId , String data );
+        }
+    
+        void registerCallback(receiveDataCallback callback);
+        void joinedTheRoom(String roomId, String streamId);
+        void leftTheRoom(String roomId, String streamId);
+
+        }
 }
